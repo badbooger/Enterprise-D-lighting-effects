@@ -1,0 +1,65 @@
+Data Pad Battery
+https://www.amazon.com/dp/B0DTHGXTNT
+
+Speakers (DataPad and saucer)
+https://www.amazon.com/dp/B0B4D1BN4F
+
+10440 LiPo battery
+No longer on Amazon — any 10440 LiPo cell will work
+
+Red 2x3x4 square LED
+https://www.amazon.com/dp/B0FWRK92NB
+Note: good spares to have on hand — LED leads on the model can break during assembly
+
+White 2x3x4 square LED
+https://www.amazon.com/dp/B01C5HL0PO
+Note: good spares to have on hand — LED leads on the model can break during assembly
+
+3mm LED kit
+https://www.amazon.com/dp/B073XL9DGP
+
+7" touchscreen (DataPad)
+https://www.amazon.com/dp/B0D6XSY476
+
+DataPad power switch
+https://www.amazon.com/dp/B0DN69L9SG
+
+mmWave presence sensor (LD2410C)
+https://www.amazon.com/dp/B0FKBF3CT4
+
+2-pin 1.25mm JST connector
+https://www.amazon.com/dp/B013JRWCBU
+Note: good spares to have on hand — JST connectors on the model can break during assembly
+
+4-pin 1.25mm JST connector
+https://www.amazon.com/dp/B0DFCHWTXK
+Note: good spares to have on hand — JST connectors on the model can break during assembly
+
+USB 1S LiPo charger
+https://www.amazon.com/dp/B0F9P2WDVH
+
+Sound board - DY-SV17F (saucer)
+https://www.amazon.com/dp/B0BPSPPW52
+Note: board-mounted form factor, 4MB onboard flash for sound files
+
+Sound board - DY-SV17F (DataPad)
+https://www.amazon.com/dp/B07YFPBGF8
+Note: same DY-SV17F controller, different form factor — uses SD card for sound file storage
+
+AAA battery placeholder
+https://www.amazon.com/dp/B0828GKYKC
+
+8-pin ribbon cable
+https://www.amazon.com/dp/B0FK5DGV29
+
+1mm FFC ribbon cable kit (8-pin and 15-pin, saucer board connections)
+https://www.amazon.com/dp/B0CTHDDJDF
+
+Boost converter (DataPad sound board)
+https://www.amazon.com/dp/B0B4TB9QNY
+
+Xiao ESP32-C3 (EngRoom)
+https://www.amazon.com/dp/B0DGX3LSC7
+
+ESP32-S3
+https://www.amazon.com/dp/B0CGYXJB6Y

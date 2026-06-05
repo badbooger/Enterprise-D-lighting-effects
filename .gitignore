@@ -1,0 +1,9 @@
+# Sound files — source from trekcore.com/audio/ (see SOUND_MAP.md)
+sounds/
+
+# Vendor libraries — install these manually in your Arduino libraries folder (see PROJECT_REFERENCE.md)
+libraries/
+
+# OS noise
+Thumbs.db
+.DS_Store
