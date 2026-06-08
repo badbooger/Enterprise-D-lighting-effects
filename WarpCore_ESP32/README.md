@@ -80,9 +80,9 @@ After the first USB flash, subsequent updates can be done OTA once WiFi is conne
 If integrating with the Enterprise-D system, open `WarpCore_ESP32.ino` and update the peer MAC arrays to match your hardware:
 
 ```cpp
-uint8_t dataPadAddress[] = {0x20, 0x6e, 0xf1, 0xa9, 0xa1, 0x14};  // DataPad
-uint8_t bridgeAddress[]  = {0xe0, 0x72, 0xa1, 0xd7, 0x37, 0x14};  // Bridge
-uint8_t engRoomAddress[] = {0x3c, 0xdc, 0x75, 0xae, 0xcd, 0xb8};  // EngRoom
+uint8_t dataPadAddress[] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00};  // DataPad
+uint8_t bridgeAddress[]  = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00};  // Bridge
+uint8_t engRoomAddress[] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00};  // EngRoom
 ```
 
 Run `MAC_address_retriver/` (from the main repo) on each board to read its MAC.

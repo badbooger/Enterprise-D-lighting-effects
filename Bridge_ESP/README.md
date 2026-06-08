@@ -40,8 +40,8 @@ After the first USB flash, subsequent updates can be done OTA — see the root R
 Open `Bridge_ESP.ino` and find the peer MAC arrays near the top of the file. Replace with the actual MACs from your hardware (run `MAC_address_retriver/` on each board):
 
 ```cpp
-uint8_t broadcastAddress1[] = { 0x3c, 0xdc, 0x75, 0xae, 0xcd, 0xb8 };  // EngRoom
-uint8_t broadcastAddress2[] = { 0x20, 0x6e, 0xf1, 0xa9, 0xa1, 0x14 };  // DataPad
+uint8_t broadcastAddress1[] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };  // EngRoom
+uint8_t broadcastAddress2[] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };  // DataPad
 ```
 
 ---
