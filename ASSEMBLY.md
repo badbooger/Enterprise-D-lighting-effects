@@ -2,7 +2,7 @@
 
 A handful of build photos showing how cabling and key components were fitted inside the model. Not a step-by-step manual — more a visual reference for the trickiest parts if you're doing a similar retrofit: routing flat flex cables (FFC) through the kit's structural frame, and fitting the speaker and DataPad electronics into limited space.
 
-See `DESIGN_STORY.md` for the full reasoning behind the FFC approach and the wiring decisions, and `HARDWARE.md` for connector pinouts.
+See `HARDWARE.md` for connector pinouts and the full hardware reference.
 
 ---
 
