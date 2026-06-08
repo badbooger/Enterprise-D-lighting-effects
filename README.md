@@ -85,6 +85,7 @@ Normal operation: WiFi off, ESP-NOW on channel 1.
 | `enterprise documentation/Data Pad stl/` | DataPad PADD case STL files |
 | `enterprise documentation/Warp_Core/` | Original Thingiverse WarpCore design archive (see below) |
 | `enterprise documentation/pcbs test prints/` | PCB test-fit prints — print before ordering boards |
+| `ASSEMBLY.md` | Build photos — FFC routing through the frame, speaker mounting, DataPad wiring |
 | `HARDWARE.md` | Full hardware reference |
 | `DEVNOTES.md` | Session logs, build history, fix queue, pending work |
 | `SOUND_MAP.md` | Sound file list and trigger map |
