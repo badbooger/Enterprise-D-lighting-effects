@@ -98,7 +98,7 @@ Normal operation: WiFi off, ESP-NOW on channel 1.
 
 ## WarpCore
 
-The WarpCore is a standalone unit with its own repository — `WarpCore_ESP32/` is included here for reference. See the WarpCore repo for the full README, pin assignments, and build notes.
+The WarpCore is a standalone unit with its own repository — [Enterprise-D-WarpCore](https://github.com/badbooger/Enterprise-D-WarpCore) — `WarpCore_ESP32/` is included here for reference. See the WarpCore repo for the full README, pin assignments, and build notes.
 
 The 3D model is based on **ST:TNG Warp Core by ElmoC** (Thingiverse thing:1656741). The original listing is no longer available online. A complete archive including all STL files, the original PCB files, and the original Arduino sketch is preserved in `enterprise documentation/Warp_Core/`. Licensed under Creative Commons Attribution — Non-Commercial — No Derivatives 3.0.
 
