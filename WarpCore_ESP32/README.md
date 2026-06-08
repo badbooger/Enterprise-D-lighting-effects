@@ -1,6 +1,6 @@
 # USS Enterprise-D Warp Core Controller
 
-ESP32-based lighting controller for a 3D-printed TNG warp core prop. Runs a 10-LED chase effect with a smooth ambient glow, speed-controlled by a potentiometer. Optionally integrates with the [Enterprise-D Prop Controller](https://github.com/badbooger/Enterprise-D-lightning-effects) via ESP-NOW — the DataPad can control speed and on/off remotely, and the LD2410C presence sensor triggers the main model to power up when someone approaches.
+ESP32-based lighting controller for a 3D-printed TNG warp core prop. Runs a 10-LED chase effect with a smooth ambient glow, speed-controlled by a potentiometer. Optionally integrates with the [Enterprise-D Prop Controller](https://github.com/badbooger/Enterprise-D-lighting-effects) via ESP-NOW — the DataPad can control speed and on/off remotely, and the LD2410C presence sensor triggers the main model to power up when someone approaches.
 
 Runs fully standalone with no other hardware required.
 
