@@ -463,18 +463,22 @@ One board design used ×2 — port and starboard nacelles are identical boards. 
 
 ### SMD LEDs (YLED1206B, 1206)
 
-6× blue 1206 SMD LEDs — main nacelle bussard collector glow. Standard SMT assembly.
+6× blue 1206 SMD LEDs — main nacelle bussard collector glow ("warp flash" effect). Standard SMT assembly. Wired as 3 parallel pairs, each pair sharing a single current-limiting resistor, all 3 pairs switched together by one MMBT2222A transistor. LED specs: 20mA rated, Vf 2.6–3.1V.
+
+**Current-limiting resistors (confirmed 2026-06-09):** Each parallel-pair resistor = **240Ω** (~8.75mA per LED at 7.4V nominal). Because each resistor serves a parallel pair, current won't split perfectly evenly (Vf mismatch), but the nacelle diffusers mask any visible imbalance — the only constraint is keeping the hotter LED under 20mA worst-case, which 240Ω satisfies comfortably.
 
 ### Through-hole footprints — not all are LEDs
 
 The 4× through-hole LED footprints (204-10SUGC/S400-A5-L) serve different purposes and are all hand-assembled:
 
-| Footprint use | Description |
-|---------------|-------------|
-| 2×3×4 square LED | Actual square LED fitted directly to board |
-| VCC injection point | Replicates original power connector — not normally used, available if board needs external power injected for bench testing |
-| Forward nacelle LED | Red 3mm LED on ~3" wire leads — runs to mounting location inside nacelle |
-| Nav lights | Two 3mm LEDs pigtailed in parallel, ~3" wire leads each — driven from nav lights transistor |
+| Footprint use | Description | Resistor (0603) |
+|---------------|-------------|-----------------|
+| 2×3×4 square LED | Actual square LED fitted directly to board | **470Ω** |
+| VCC injection point | Replicates original power connector — not normally used, available if board needs external power injected for bench testing | — |
+| Forward nacelle LED | Red 3mm LED on ~3" wire leads — runs to mounting location inside nacelle | **470Ω** |
+| Nav lights | Two 3mm LEDs pigtailed in parallel, ~3" wire leads each — driven from nav lights transistor | **1.2kΩ** |
+
+470Ω chosen to match ~8.75mA per LED of the parallel SMD pairs at 7.4V nominal. Nav lights 1.2kΩ unchanged from standard board value.
 
 Original board photos retained for reference wiring layout.
 
@@ -612,6 +616,7 @@ Original Arduino Nano sketch (`WarpCore/WarpCore.ino`) kept as reference only �
 
 - **Supply:** 5V from a small boost converter stepping up the Nano ESP32's 3.3V rail
 - **Logic:** 3.3V OUT pin, push-pull — no pull-up resistor needed on D7
-- **Configuration:** one-time setup via LD2410C Android/PC app over Bluetooth (detection zones, sensitivity). OUT = HIGH on presence, LOW on clear.
-- **Firmware behaviour:** rising edge on D7 → sends `LED_STARTUP` to Bridge + EngRoom if model is off; 3-second debounce lockout. Ignored if model already on.
-- **Enable/disable toggle:** planned for DataPad Screen 2 (not yet implemented).
+- **Configuration:** UART pins not yet wired (only OUT is connected). Plan is a spare Arduino Nano as USB-to-serial passthrough to HLKRadarTool on a PC for detection-range/gate-sensitivity tuning — see `DESIGN_STORY.md` Presence Detection section. OUT = HIGH on presence, LOW on clear.
+- **Firmware behaviour:** rising edge on D7 → sends `LED_RADAR_TRIG` to DataPad only (not directly to Bridge/EngRoom — DataPad holds the authoritative on/off state and calls `PowerUpAll()` if the model is off, avoiding a startup/trigger loop). 3-second debounce lockout. Ignored if model already on.
+- **Enable/disable toggle:** implemented — SENSORS ON/OFF button on DataPad Screen 2, persisted to NVS (`radar_on`) on both WarpCore and DataPad via `LED_RADAR_EN`.
+- **Sensor housing:** new WarpCore base with an integrated sensor bay (single 0.4mm PLA wall as the radar window) is designed and printed — not yet fitted. See `DESIGN_STORY.md` "Remaining to Complete the Project".

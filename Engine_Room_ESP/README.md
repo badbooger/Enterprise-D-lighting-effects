@@ -39,8 +39,8 @@ After the first USB flash, subsequent updates can be done OTA — see the root R
 Open `Engine_Room_ESP.ino` and find the peer MAC arrays near the top of the file:
 
 ```cpp
-uint8_t broadcastAddress1[] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };  // DataPad
-uint8_t broadcastAddress2[] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };  // Bridge
+uint8_t broadcastAddress1[] = { 0x20, 0x6e, 0xf1, 0xa9, 0xa1, 0x14 };  // DataPad
+uint8_t broadcastAddress2[] = { 0xe0, 0x72, 0xa1, 0xd7, 0x37, 0x14 };  // Bridge
 ```
 
 Replace with the actual MACs from your hardware (run `MAC_address_retriver/` on each board).
@@ -80,6 +80,8 @@ All LED groups are switched through MMBT2222A NPN transistors. Do not connect LE
 **Nacelle pulse (normal)** — slow sine-wave breathing (5000ms period, 80–115 duty range) when model is running.
 
 **Nacelle warp mode** — triggered by `LED_WARP` command with a speed value 1–10. Three-phase startup: snap to 25% → ramp to 100% over ~1.5s → hold at speed-mapped brightness (80–100%). Speed changes while warp is active skip the ramp. Returns to normal sine on `LED_WARP val=0`.
+
+> **Brighter warp flash (optional hardware change):** The nacelle PCB uses 6× blue 1206 SMD LEDs wired as 3 parallel pairs, each pair sharing one current-limiting resistor. Swapping those resistors to a lower value increases brightness. At 7.4V nominal with Vf ≈ 2.6–3.1V, **240Ω** gives ~8.75mA per LED — noticeably brighter than a typical stock value and well within the 20mA LED rating. In practice, brightness between paired LEDs is indistinguishable. Do not go below 220Ω. Any single LEDs on the board (non-paired, through-hole) need a separate higher value — **470Ω** — to match the same per-LED current.
 
 **Deflector** — 60% steady brightness during normal operation, 100% during warp.
 
