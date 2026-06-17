@@ -6,11 +6,12 @@ All three sketches live in this folder. Read this before making changes.
 
 ## Next Session — Action Required
 
-**PCB fix (2026-06-17). EngRoom nacelle polarity corrected.**
+**PCB fix + ESP swap (2026-06-17). EngRoom nacelle polarity corrected; ESP32-C3 replaced.**
 
 **Changes:**
 
 - **EngRoom PCB nacelle polarity fix:** Left and right nacelle connector footprints had positive and negative pads reversed. Discovered during assembly — nacelle LEDs would not light with correct wiring polarity. PCB updated in EasyEDA and new Gerbers exported (`EngRoomPCB.zip`). No firmware change needed.
+- **EngRoom ESP replaced — new MAC `80:F1:B2:60:6F:54`:** Xiao ESP32-C3 swapped out. Previous MAC `3c:dc:75:ae:da:fc`. Updated in `Bridge_ESP.ino`, `Data_Pad.ino`, `PROJECT_REFERENCE.md`, `GPIO outputs EngRoom.txt`, `CLAUDE.md`.
 
 ---
 
