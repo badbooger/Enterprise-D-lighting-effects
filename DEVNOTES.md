@@ -6,6 +6,14 @@ All three sketches live in this folder. Read this before making changes.
 
 ## Next Session — Action Required
 
+**PCB fix (2026-06-17). EngRoom nacelle polarity corrected.**
+
+**Changes:**
+
+- **EngRoom PCB nacelle polarity fix:** Left and right nacelle connector footprints had positive and negative pads reversed. Discovered during assembly — nacelle LEDs would not light with correct wiring polarity. PCB updated in EasyEDA and new Gerbers exported (`EngRoomPCB.zip`). No firmware change needed.
+
+---
+
 **Session 32 complete (2026-05-29). Bridge web server removed. Boot indicator timer fix. Auto-start default shortened.**
 
 **Changes this session:**
