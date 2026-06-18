@@ -145,9 +145,11 @@ For a board revision:
 > - Neck windows (10 LED-pair groups, 3 transistors) combined onto one GPIO signal — all 3 transistor bases tied to same net, no component changes needed.
 > - Pull-down resistors removed. Base resistors changed from 10kΩ to 1.2kΩ — matches LED current-limiting resistor value, reduces BOM to one resistor value on the board.
 > - Left nacelle connector footprint corrected to match physical wiring layout.
-> - **New GPIO assignments applied (new boards fitted 2026-05-28):** GPIO 20 = all neck windows (back of neck + both battle bridges wired together), GPIO 8 = left nacelle, GPIO 9 = right nacelle, GPIO 2 = battery ADC (270kΩ+100kΩ, ADC_11db, multiplier 3.70). GPIO 3 freed. Firmware updated to match — confirmed working.
+> - **New GPIO assignments for revised PCB:** GPIO 20 = all neck windows (back of neck + both battle bridges wired together), GPIO 8 = left nacelle, GPIO 3 = right nacelle, GPIO 2 = battery ADC (270kΩ+100kΩ, ADC_11db, multiplier 3.70). New board installed in model 2026-06-18.
 >
 > **Nacelle polarity fix (2026-06-17):** Left and right nacelle connector footprints had positive and negative pads reversed on the EngRoom PCB. Discovered during assembly — nacelle LEDs would not light with correct wiring polarity. PCB updated in EasyEDA and new Gerbers exported. No firmware change needed.
+>
+> **GPIO 9 strapping pin fix (2026-06-18):** Right nacelle was originally assigned to GPIO 9, which is the BOOT strapping pin on ESP32-C3. The 1.2kΩ base resistor into the NPN transistor base-emitter junction pulled GPIO 9 LOW at power-on, putting the chip into download mode (boot freeze). Left nacelle on GPIO 8 was unaffected — Xiao board has a stronger external pull-up on GPIO 8. Fix: right nacelle moved to GPIO 3 in firmware and PCB. Old EngRoom board was not affected — nacelles were on GPIO 2/3, neither is a strapping pin.
 
 > **Wiring issue resolved — nav/photon connector (2026-05-20):** Nav and photon wires were soldered in reverse order on the neck board connector. Connector re-pinned 2026-05-20 — firmware was already correct, no sketch change needed. Permanent fix applied in PCB revision above.
 

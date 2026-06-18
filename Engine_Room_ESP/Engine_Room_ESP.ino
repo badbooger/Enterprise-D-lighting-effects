@@ -25,8 +25,9 @@ uint32_t    wifiDropMs      = 0;
 #define WIFI_REVERT_MS 90000UL
 uint8_t     wifiChannel   = 1;
 
-uint8_t broadcastAddress[]  = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00};  // DataPad — run MAC_address_retriver on your board
-uint8_t bridgeAddress[]     = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00};  // Bridge  — run MAC_address_retriver on your board
+uint8_t broadcastAddress[]  = {0x20, 0x6e, 0xf1, 0xa9, 0xa1, 0x14};  // DataPad — model install
+uint8_t bridgeAddress[]     = {0xe0, 0x72, 0xa1, 0xd7, 0x37, 0x14};  // Bridge — model install
+uint8_t dataPad2Address[]   = {0x30, 0xed, 0xa0, 0xac, 0xa1, 0xdc};  // DataPad 2.8" pocket remote
 
 // ── LED command constants (must match Bridge and DataPad exactly) ─────────────
 #define LED_ON             1
@@ -86,7 +87,7 @@ const int WIN_PINS[] = {20, 7, 21};  // neck (all), eng top, eng bot
 #define PIN_NAV        5
 #define PIN_DEFLECTOR  6
 #define PIN_IMPULSE   10
-#define PIN_NAC_R      9
+#define PIN_NAC_R      3
 #define PIN_NAC_L      8
 #define PIN_PHOTON     4
 #define PIN_BAT_ADC    2
@@ -214,7 +215,7 @@ uint32_t damageStartMs   = 0;
 
 
 float readBatteryVolts() {
-  return analogReadMilliVolts(PIN_BAT_ADC) * 3.70f / 1000.0f;
+  return analogReadMilliVolts(PIN_BAT_ADC) * 3.83f / 1000.0f;
 }
 
 
@@ -885,12 +886,17 @@ void setup() {
   peerInfo.channel = 0; peerInfo.encrypt = false;
   if (esp_now_add_peer(&peerInfo) != ESP_OK) { Serial.println("Failed to add Bridge peer"); return; }
 
+  memcpy(peerInfo.peer_addr, dataPad2Address, 6);
+  peerInfo.channel = 0; peerInfo.encrypt = false;
+  if (esp_now_add_peer(&peerInfo) != ESP_OK) { Serial.println("Failed to add DataPad2 peer"); return; }
+
   esp_wifi_get_channel(&wifiChannel, NULL);
   Serial.printf("ESP-NOW ready  ch=%d\n", wifiChannel);
 
   myData.status = 1; myData.boardInd = 2;
   myData.ledValue = asmMode ? 1 : 0;
   esp_now_send(broadcastAddress, (uint8_t *)&myData, sizeof(myData));
+  esp_now_send(dataPad2Address, (uint8_t *)&myData, sizeof(myData));
   myData.ledValue = 0;
 
   ArduinoOTA
@@ -993,6 +999,7 @@ void loop() {
     struct_message reply; memset(&reply, 0, sizeof(reply));
     reply.boardInd = 2; reply.status = 3;
     esp_now_send(broadcastAddress, (uint8_t *)&reply, sizeof(reply));
+    esp_now_send(dataPad2Address, (uint8_t *)&reply, sizeof(reply));
     Serial.println("Damage auto-cancelled, state restored");
   }
 
@@ -1015,6 +1022,7 @@ void loop() {
       ping.ipAddress  = (uint32_t)WiFi.localIP();
     }
     esp_now_send(broadcastAddress, (uint8_t *)&ping, sizeof(ping));
+    esp_now_send(dataPad2Address, (uint8_t *)&ping, sizeof(ping));
 
     struct_message batMsg; memset(&batMsg, 0, sizeof(batMsg));
     batMsg.boardInd = 2;
@@ -1085,6 +1093,7 @@ void StartWiFi(bool saveCredentials) {
   Serial.printf("ESP-NOW peers refreshed  ch=%d\n", wifiChannel);
 
   myData.boardInd = 2; myData.wifiStatus = 3; myData.ipAddress = (uint32_t)WiFi.localIP();
+  snprintf(myData.ssid1, sizeof(myData.ssid1), "%s", WiFi.macAddress().c_str());
   esp_now_send(broadcastAddress, (uint8_t *)&myData, sizeof(myData));
 
   if (saveCredentials) {

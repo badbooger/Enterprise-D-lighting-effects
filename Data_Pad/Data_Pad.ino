@@ -30,9 +30,11 @@ bool        servicesStarted = false;
 uint8_t wifiChannel = 1;   // cached channel — updated from main task, safe to read in callbacks
 
 // ESP-NOW peer MACs
-uint8_t broadcastAddress1[]        = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00}; // EngRoom  — run MAC_address_retriver on your board
-uint8_t broadcastAddress2[]        = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00}; // Bridge   — run MAC_address_retriver on your board
-uint8_t broadcastAddressWarpCore[] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00}; // WarpCore — run MAC_address_retriver on your board
+uint8_t broadcastAddress1[]        = {0x80, 0xF1, 0xB2, 0x60, 0x6F, 0x54}; // EngRoom
+// uint8_t broadcastAddress2[]     = {0xe0, 0x72, 0xa1, 0xd7, 0x37, 0x14}; // Bridge — model install
+uint8_t broadcastAddress2[]        = {0x80, 0xf1, 0xb2, 0xcc, 0x46, 0x5c}; // Bridge — bench test
+uint8_t broadcastAddressWarpCore[] = {0x20, 0x6e, 0xf1, 0x31, 0xda, 0x54}; // WarpCore
+uint8_t broadcastAll[]             = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 
 // ── LED command constants (must match Bridge and EngRoom exactly) ─────────────
 #define GRP_ALL_WINDOWS   18
@@ -252,6 +254,34 @@ void handleReceivedData() {
     else if (radarEnabled && redAlertSensorEnabled && !redAlertActive) RedAlertStart(NULL);
     return;
   }
+  // Pocket remote (2.8") red alert trigger: boardInd=3, status=5
+  if (receivedData.boardInd == 3 && receivedData.status == 5) {
+    if (!redAlertActive) RedAlertStart(NULL);
+    return;
+  }
+
+  // Pocket remote (2.8") power/damage sync — mirror UI state only;
+  // commands already went directly to Bridge/EngRoom from the remote
+  if (receivedData.boardInd == 3) {
+    if (receivedData.ledCmd == LED_STARTUP && !ledsAreOn) {
+      ledsAreOn = true;
+      lv_label_set_text(lv_obj_get_child(ui_Button13, 0), "POWER DOWN");
+      syncButtonsOn();
+    } else if (receivedData.ledCmd == LED_SHUTDOWN && ledsAreOn) {
+      ledsAreOn = false;
+      lv_label_set_text(lv_obj_get_child(ui_Button13, 0), "POWER UP ALL");
+      syncButtonsOff();
+    } else if (receivedData.ledCmd == LED_ELEC_SHORT && !damageActive) {
+      damageActive = true;
+      lv_label_set_text(lv_obj_get_child(ui_Button49, 0), "DMG ACTIVE");
+    } else if (receivedData.ledCmd == LED_ON && damageActive) {
+      damageActive = false;
+      lv_label_set_text(lv_obj_get_child(ui_Button49, 0), "DAMAGE CTRL");
+    } else if (receivedData.ledCmd == SND_CMD_PLAY) {
+      padSndPlay((uint8_t)receivedData.ledValue);
+    }
+    return;
+  }
 
   // Update per-unit last-contact timestamp on every message — used for offline detection
   if (receivedData.boardInd == 1) {
@@ -313,7 +343,9 @@ void handleReceivedData() {
   if (receivedData.wifiStatus == 3) {
     lv_obj_add_state(ui_Button45, LV_STATE_CHECKED);
     IPAddress ip(receivedData.ipAddress);
-    lv_label_set_text(ui_Label18, ip.toString().c_str());
+    static char engBuf[64];
+    snprintf(engBuf, sizeof(engBuf), "%s\n%s", ip.toString().c_str(), receivedData.ssid1);
+    lv_label_set_text(ui_Label18, engBuf);
   } else if (receivedData.wifiStatus == 2) {
     lv_obj_clear_state(ui_Button45, LV_STATE_CHECKED);
     lv_obj_add_state(ui_Button45, LV_STATE_DEFAULT);
@@ -402,6 +434,12 @@ void setup() {
   if (esp_now_add_peer(&peerInfo) != ESP_OK) {
     Serial.println("Failed to add WarpCore peer");
   }
+
+  // Register broadcast peer (for WiFi credential push)
+  memcpy(peerInfo.peer_addr, broadcastAll, 6);
+  peerInfo.channel = 0;
+  peerInfo.encrypt = false;
+  esp_now_add_peer(&peerInfo);
 
   esp_wifi_get_channel(&wifiChannel, NULL);
   Serial.printf("ESP-NOW ready  ch=%d\n", wifiChannel);
@@ -1487,8 +1525,12 @@ void SaveWifi(lv_event_t *e) {
     strncpy(myData.password1, pending_password, 64); myData.password1[64] = '\0';
 
     myData.startWifi = 2;   // connect + save on Bridge and EngRoom
+    esp_now_send(broadcastAll, (uint8_t *)&myData, sizeof(myData));
+    delay(500);
     esp_now_send(0, (uint8_t *)&myData, sizeof(myData));
     myData.startWifi = 0;
+
+    delay(500);
 
     wifiSaved       = true;
     do_wifi_connect = true;
