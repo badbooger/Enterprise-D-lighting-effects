@@ -1,4 +1,4 @@
-# Web MAC Address Retriever
+# Board Utility
 
 > **Safety Warning:** These PCBs are experimental, hand-designed hobby boards — not certified consumer products. If you are building with LiPo or Li-ion batteries, take proper precautions: never leave charging batteries unattended, use appropriate cell protection, and verify polarity before connecting power. Incorrect wiring or battery handling can cause fire, burns, or damage to components. Proceed at your own risk.
 
@@ -17,13 +17,13 @@ The boards in this project communicate with each other using ESP-NOW, a direct w
 
 This is a standalone access point — your phone/laptop connects directly to the ESP32. It does not connect to your home network or the internet.
 
-**Built-in OTA (Over-The-Air) updates:** After the initial USB flash, this sketch can be updated wirelessly. If you connect your computer to the board's WiFi access point, the Arduino IDE will show `web_mac_address` as a network port under **Tools > Port**. You can upload updated sketches over WiFi without plugging in a USB cable. This also applies to the main project sketches once they are flashed — they all support OTA updates.
+**Built-in OTA (Over-The-Air) updates:** After the initial USB flash, this sketch can be updated wirelessly. If you connect your computer to the board's WiFi access point, the Arduino IDE will show `board_utility` as a network port under **Tools > Port**. You can upload updated sketches over WiFi without plugging in a USB cable. This also applies to the main project sketches once they are flashed — they all support OTA updates.
 
 The MAC address is also printed to the serial monitor at 115200 baud if you prefer to read it that way.
 
 ## How to Use
 
-1. **Open** `web_mac_address.ino` in the Arduino IDE.
+1. **Open** `board_utility.ino` in the Arduino IDE.
 2. **Select your board** in the IDE (e.g. ESP32-S3 for the Bridge, XIAO ESP32-C3 for EngRoom, etc.).
 3. **Upload** via USB.
 4. **Connect** your phone or laptop to the WiFi network:
@@ -50,7 +50,7 @@ Since this sketch is preloaded on the board, you don't need to edit any WiFi cre
 After the initial USB flash, you can update this sketch over WiFi:
 
 1. Connect your computer to the `enterprise` WiFi network.
-2. In Arduino IDE, go to **Tools > Port** and select `web_mac_address` from the network ports list.
+2. In Arduino IDE, go to **Tools > Port** and select `board_utility` from the network ports list.
 3. Upload as normal.
 
 ## Next Steps

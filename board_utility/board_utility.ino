@@ -59,7 +59,7 @@ void handleRoot() {
     <h1>ESP32 MAC Address</h1>
     <div class='mac'>)rawhtml" + macAddress + R"rawhtml(</div>
     <p class='info'>Tap the address to select it for copying.<br>
-    OTA hostname: web_mac_address</p>
+    OTA hostname: board_utility</p>
 
     <h2>Clear NVS Storage</h2>
     <p class='info'>Wipes saved WiFi credentials and settings for the selected unit.</p>
@@ -143,7 +143,7 @@ void setup() {
   webServer.onNotFound(handleRedirect);
   webServer.begin();
 
-  ArduinoOTA.setHostname("web_mac_address");
+  ArduinoOTA.setHostname("board_utility");
   ArduinoOTA.begin();
 }
 
