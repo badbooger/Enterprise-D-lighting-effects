@@ -33,9 +33,21 @@ The MAC address is also printed to the serial monitor at 115200 baud if you pref
 6. **Write down the MAC address** — you'll need it when setting up the main sketches.
 7. **Repeat** for each board in the project.
 
+## Clearing NVS Storage
+
+The webpage also has buttons to clear the NVS (Non-Volatile Storage) on the board. NVS is where the main sketches save WiFi credentials, timing settings, and other preferences. If you need to reset a board to factory defaults or clear out saved WiFi credentials, tap the button for the unit you're working on:
+
+- **Bridge** — clears the `bridge` namespace
+- **EngRoom** — clears the `engroom` namespace
+- **DataPad** — clears the `datapad` namespace
+- **WarpCore** — clears the `warpcore` namespace
+- **Clear All** — clears all four namespaces at once
+
+Since this sketch is preloaded on the board, you don't need to edit any WiFi credentials or flash a separate clearing sketch — just connect to the AP and tap the button.
+
 ## OTA Updates
 
-After the first USB flash, you can update this sketch over WiFi:
+After the initial USB flash, you can update this sketch over WiFi:
 
 1. Connect your computer to the `enterprise` WiFi network.
 2. In Arduino IDE, go to **Tools > Port** and select `web_mac_address` from the network ports list.
