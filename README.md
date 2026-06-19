@@ -54,7 +54,7 @@ Flash in this order so ESP-NOW communication works from the start:
 2. **EngRoom** — see [Engine_Room_ESP/README.md](Engine_Room_ESP/README.md)
 3. **DataPad** — see [Data_Pad/README.md](Data_Pad/README.md)
 
-Before flashing: run `MAC_address_retriver/` on each board to get its MAC address, then update the peer MAC arrays in each sketch to match your hardware.
+Before flashing: power each board and connect to its WiFi AP to get the MAC address (see `board_utility/`), then update the peer MAC arrays in each sketch to match your hardware.
 
 ### OTA updates (after initial flash)
 
@@ -78,9 +78,8 @@ Normal operation: WiFi off, ESP-NOW on channel 1.
 | `Data_Pad/` | 7" DataPad sketch and LVGL UI files |
 | `Data_Pad_240x320/` | 2.8" DataPad variant |
 | `WarpCore_ESP32/` | WarpCore ESP32 sketch |
-| `Bridge_NVS_Clear/` | Utility — wipes Bridge WiFi credentials from NVS |
-| `EngRoom_NVS_Clear/` | Utility — wipes EngRoom WiFi credentials from NVS |
-| `MAC_address_retriver/` | Utility — reads and prints a board's MAC address |
+| `board_utility/` | Preloaded utility — WiFi AP captive portal shows MAC address, NVS clear buttons, OTA support |
+| `MAC_address_retriver/` | Utility — prints MAC address to serial monitor (legacy, see `board_utility/` instead) |
 | `enterprise documentation/PCB Design/` | Gerbers, BOMs, pick-and-place for all 6 board designs |
 | `enterprise documentation/Data Pad stl/` | DataPad PADD case STL files |
 | `enterprise documentation/Warp_Core/` | Original Thingiverse WarpCore design archive (see below) |
