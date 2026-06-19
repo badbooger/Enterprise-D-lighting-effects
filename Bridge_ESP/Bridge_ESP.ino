@@ -24,8 +24,8 @@ uint32_t    wifiDropMs      = 0;       // millis() when WiFi drop first detected
 uint8_t     wifiChannel   = 1;   // cached channel — updated from main task, safe to read in callbacks
 
 // ── MAC addresses ─────────────────────────────────────────────────────────────
-uint8_t broadcastAddress1[] = {0x80, 0xF1, 0xB2, 0x60, 0x6F, 0x54}; // EngRoom
-uint8_t broadcastAddress2[] = {0x20, 0x6e, 0xf1, 0xa6, 0xf3, 0x4c}; // DataPad
+uint8_t broadcastAddress1[] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00}; // EngRoom — run MAC_address_retriver on your board
+uint8_t broadcastAddress2[] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00}; // DataPad — run MAC_address_retriver on your board
 
 // ── Sound (DY-SV17F on UART2) ────────────────────────────────────────────────
 #define USE_SOUND

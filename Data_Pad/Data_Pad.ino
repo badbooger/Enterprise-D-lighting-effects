@@ -30,10 +30,9 @@ bool        servicesStarted = false;
 uint8_t wifiChannel = 1;   // cached channel — updated from main task, safe to read in callbacks
 
 // ESP-NOW peer MACs
-uint8_t broadcastAddress1[]        = {0x80, 0xF1, 0xB2, 0x60, 0x6F, 0x54}; // EngRoom
-// uint8_t broadcastAddress2[]     = {0xe0, 0x72, 0xa1, 0xd7, 0x37, 0x14}; // Bridge — model install
-uint8_t broadcastAddress2[]        = {0x80, 0xf1, 0xb2, 0xcc, 0x46, 0x5c}; // Bridge — bench test
-uint8_t broadcastAddressWarpCore[] = {0x20, 0x6e, 0xf1, 0x31, 0xda, 0x54}; // WarpCore
+uint8_t broadcastAddress1[]        = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00}; // EngRoom — run MAC_address_retriver on your board
+uint8_t broadcastAddress2[]        = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00}; // Bridge — run MAC_address_retriver on your board
+uint8_t broadcastAddressWarpCore[] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00}; // WarpCore — run MAC_address_retriver on your board
 uint8_t broadcastAll[]             = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 
 // ── LED command constants (must match Bridge and EngRoom exactly) ─────────────
@@ -221,15 +220,17 @@ void handleReceivedData() {
     if (receivedData.boardInd == 1) {
       bridgeBatVolts = receivedData.ledValue / 1000.0f;
       updateBatDisplay();
-      if (receivedData.ledValue > BAT_WARN_MV) batWarnFired = false;
-      if (receivedData.ledValue > BAT_CRIT_MV) batCritFired = false;
-      if (!redAlertActive && !yellowAlertActive) {
-        if (!batCritFired && receivedData.ledValue <= BAT_CRIT_MV) {
-          batCritFired = true; batWarnFired = true;
-          RedAlertStart(NULL);
-        } else if (!batWarnFired && receivedData.ledValue <= BAT_WARN_MV) {
-          batWarnFired = true;
-          YellowAlertStart(NULL);
+      if (receivedData.ledValue > 0) {
+        if (receivedData.ledValue > BAT_WARN_MV) batWarnFired = false;
+        if (receivedData.ledValue > BAT_CRIT_MV) batCritFired = false;
+        if (!redAlertActive && !yellowAlertActive) {
+          if (!batCritFired && receivedData.ledValue <= BAT_CRIT_MV) {
+            batCritFired = true; batWarnFired = true;
+            RedAlertStart(NULL);
+          } else if (!batWarnFired && receivedData.ledValue <= BAT_WARN_MV) {
+            batWarnFired = true;
+            YellowAlertStart(NULL);
+          }
         }
       }
     } else if (receivedData.boardInd == 2) {

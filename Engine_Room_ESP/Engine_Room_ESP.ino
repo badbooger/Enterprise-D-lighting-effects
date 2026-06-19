@@ -25,9 +25,9 @@ uint32_t    wifiDropMs      = 0;
 #define WIFI_REVERT_MS 90000UL
 uint8_t     wifiChannel   = 1;
 
-uint8_t broadcastAddress[]  = {0x20, 0x6e, 0xf1, 0xa9, 0xa1, 0x14};  // DataPad — model install
-uint8_t bridgeAddress[]     = {0xe0, 0x72, 0xa1, 0xd7, 0x37, 0x14};  // Bridge — model install
-uint8_t dataPad2Address[]   = {0x30, 0xed, 0xa0, 0xac, 0xa1, 0xdc};  // DataPad 2.8" pocket remote
+uint8_t broadcastAddress[]  = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00};  // DataPad — run MAC_address_retriver on your board
+uint8_t bridgeAddress[]     = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00};  // Bridge — run MAC_address_retriver on your board
+uint8_t dataPad2Address[]   = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00};  // DataPad 2.8" — run MAC_address_retriver on your board
 
 // ── LED command constants (must match Bridge and DataPad exactly) ─────────────
 #define LED_ON             1

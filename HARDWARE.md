@@ -598,7 +598,7 @@ Case attaches to Waveshare screen with M3×4 screws. Waveshare USB-C port is not
 **Board:** Arduino Nano ESP32 (drop-in replacement for original Arduino Nano)
 **Sketch:** `WarpCore_ESP32/WarpCore_ESP32.ino`
 **mDNS:** `WarpCore.local`
-**MAC:** `20:6e:f1:31:da:54`
+**MAC:** `<redacted>`
 
 Original Arduino Nano sketch (`WarpCore/WarpCore.ino`) kept as reference only — uses SoftPWM library, AVR-only, not portable to ESP32.
 
