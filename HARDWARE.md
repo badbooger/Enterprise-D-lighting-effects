@@ -13,6 +13,16 @@ Power distribution uses JST Micro 1.25 connectors throughout.
 
 ---
 
+## ESP32-S3 First Flash — UART Required for Blank Chips
+
+A brand new ESP32-S3 WROOM module (fresh from reflow, never programmed) will not enumerate over USB. The S3's USB port is a software CDC peripheral — there is no hardware USB-to-UART bridge on the chip. Until firmware with USB CDC On Boot enabled is flashed, the PC never sees a serial port and the chip boot-loops on USB connection.
+
+**First flash must go through the hardware UART pins (TX/RX) using a USB-to-serial adapter or a dev board with a UART bridge (CP2102/CH340).** Once a sketch is flashed with "USB CDC On Boot" enabled in Arduino IDE board settings, native USB works normally from that point on — including for OTA and future USB uploads.
+
+**Alternative: use an S3 from a dev board.** ESP32-S3 dev boards ship with USB CDC firmware already flashed from the factory. Desolder the WROOM module from a dev board, reflow it onto the custom PCB, and USB works immediately — no UART step needed.
+
+---
+
 ## Bridge ESP32-S3 — GPIO Pinout
 
 | Group | GPIO Pin | Description |
@@ -141,15 +151,15 @@ For a board revision:
 > **EngRoom PCB also revised (2026-05-21):** Multiple changes — current boards unchanged, firmware update deferred until new boards fitted.
 > - FFC connector updated — nav pin now carries GPIO 5 control signal to neck PCB nav transistor base (was post-transistor collector output).
 > - Voltage regulator moved away from centre standoff; input/output decoupling caps moved with it.
-> - Battery voltage monitor added on GPIO 2 (ADC1). Voltage divider: R1=270kΩ, R2=100kΩ — maps 6.0V–8.4V battery range to 1.62V–2.27V on ADC. Use ADC_11db attenuation in firmware. **Hand-assembly bench substitute:** 470kΩ (R1) + 200kΩ (R2) — maps same range to 1.79V–2.51V, comfortably within 11dB range and ratio close to final design. Write firmware for final 270kΩ+100kΩ values (multiplier Vbat = Vadc × 3.70); bench parts read ~10% low, swap before calibrating. Divider placed on PCB close to GPIO 2, tapped directly from the local supply rail. Keep analog trace short.
+> - Battery voltage monitor added on GPIO 2 (ADC1). Voltage divider: R1=270kΩ, R2=100kΩ — maps 6.0V–8.4V battery range to 1.62V–2.27V on ADC. Use ADC_11db attenuation in firmware. **Hand-assembly bench substitute:** 470kΩ (R1) + 200kΩ (R2) — maps same range to 1.79V–2.51V, comfortably within 11dB range and ratio close to final design. Calibrated multiplier (bench supply, 6.0V–8.4V, 2026-06-09): **Vbat = Vadc × 3.83** — accurate to within 1% across full range. Theoretical value was 3.70; ESP32 ADC reads ~3.4% low across this range. Divider placed on PCB close to GPIO 2, tapped directly from the local supply rail. Keep analog trace short.
 > - Neck windows (10 LED-pair groups, 3 transistors) combined onto one GPIO signal — all 3 transistor bases tied to same net, no component changes needed.
 > - Pull-down resistors removed. Base resistors changed from 10kΩ to 1.2kΩ — matches LED current-limiting resistor value, reduces BOM to one resistor value on the board.
 > - Left nacelle connector footprint corrected to match physical wiring layout.
-> - **New GPIO assignments for revised PCB:** GPIO 20 = all neck windows (back of neck + both battle bridges wired together), GPIO 8 = left nacelle, GPIO 3 = right nacelle, GPIO 2 = battery ADC (270kΩ+100kΩ, ADC_11db, multiplier 3.70). New board installed in model 2026-06-18.
+> - **New GPIO assignments for revised PCB:** GPIO 20 = all neck windows (back of neck + both battle bridges wired together), GPIO 8 = left nacelle, GPIO 3 = right nacelle, GPIO 2 = battery ADC (270kΩ+100kΩ, ADC_11db, multiplier 3.83). Firmware (`Engine_Room_ESP.ino`) updated to match — new board installed in model 2026-06-18.
 >
 > **Nacelle polarity fix (2026-06-17):** Left and right nacelle connector footprints had positive and negative pads reversed on the EngRoom PCB. Discovered during assembly — nacelle LEDs would not light with correct wiring polarity. PCB updated in EasyEDA and new Gerbers exported. No firmware change needed. Hardware workaround: masked the reversed pads with solder mask, then ran wires from the now-disconnected connector pins to power-in pads left over from the original kit board design — correctly oriented and already on the PCB, making the polarity swap straightforward.
 >
-> **GPIO 9 strapping pin fix (2026-06-18):** Right nacelle was originally assigned to GPIO 9, which is the BOOT strapping pin on ESP32-C3. The 1.2kΩ base resistor into the NPN transistor base-emitter junction pulled GPIO 9 LOW at power-on, putting the chip into download mode (boot freeze). Left nacelle on GPIO 8 was unaffected — Xiao board has a stronger external pull-up on GPIO 8. Fix: right nacelle moved to GPIO 3 in firmware and PCB. Old EngRoom board was not affected — nacelles were on GPIO 2/3, neither is a strapping pin.
+> **GPIO 9 strapping pin fix (2026-06-18):** Right nacelle was originally assigned to GPIO 9, which is the BOOT strapping pin on ESP32-C3. The 1.2kΩ base resistor into the NPN transistor base-emitter junction pulled GPIO 9 LOW at power-on, putting the chip into download mode (boot freeze). Left nacelle on GPIO 8 was unaffected — Xiao board has a stronger external pull-up on GPIO 8. Fix: right nacelle moved to GPIO 3 in firmware and PCB. Hardware workaround on current board: solder mask GPIO 9 trace, jump wire to GPIO 3. Old EngRoom board was not affected — nacelles were on GPIO 2/3, neither is a strapping pin.
 
 > **Wiring issue resolved — nav/photon connector (2026-05-20):** Nav and photon wires were soldered in reverse order on the neck board connector. Connector re-pinned 2026-05-20 — firmware was already correct, no sketch change needed. Permanent fix applied in PCB revision above.
 
@@ -593,12 +603,41 @@ Case attaches to Waveshare screen with M3×4 screws. Waveshare USB-C port is not
 
 ---
 
+## DataPad 2.8" (Waveshare ESP32-S3-Touch-LCD-2.8)
+
+**Board:** Waveshare ESP32-S3-Touch-LCD-2.8 (240×320 SPI, CST328 touch)
+**Sketch:** `Data_Pad_240x320/Data_Pad_28/Data_Pad_28.ino`
+**mDNS:** `DataPad2.local`
+
+### Power latch
+
+The board uses a hardware power latch circuit. Pressing the power button momentarily applies battery power; firmware must drive **GPIO 7 HIGH** during `setup()` to hold the MOSFET latched. Without it the board powers off the instant the button is released.
+
+`BAT_Init()` sets GPIO 7 HIGH as its first action — this is the `PWR_HOLD_PIN` define in `BAT_Driver.h`.
+
+To power off from software: `digitalWrite(7, LOW)`.
+
+### GPIO assignments
+
+| GPIO | Function |
+|------|----------|
+| 5 | LCD backlight PWM |
+| 7 | Power hold latch (OUTPUT, HIGH = on) |
+| 8 | Battery ADC (voltage divider) |
+| 39 | LCD RST |
+| 40 | LCD SCLK |
+| 41 | LCD DC |
+| 42 | LCD CS |
+| 45 | LCD MOSI |
+
+---
+
 ## WarpCore Hardware
 
 **Board:** Arduino Nano ESP32 (drop-in replacement for original Arduino Nano)
 **Sketch:** `WarpCore_ESP32/WarpCore_ESP32.ino`
 **mDNS:** `WarpCore.local`
-**MAC:** `<redacted>`
+**MAC:** `00:00:00:00:00:00`
 
 Original Arduino Nano sketch (`WarpCore/WarpCore.ino`) kept as reference only — uses SoftPWM library, AVR-only, not portable to ESP32.
 

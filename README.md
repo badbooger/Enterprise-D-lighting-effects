@@ -48,13 +48,15 @@ Parts list with Amazon links: `amazon parts.txt`.
 
 ### First flash (USB)
 
+> **Blank ESP32-S3 modules:** A new S3 chip that has never been programmed will not enumerate over USB — first flash must go through UART (TX/RX) with a USB-to-serial adapter. Alternatively, use an S3 desoldered from a dev board — those ship with USB CDC firmware already flashed. See `HARDWARE.md` for details.
+
 Flash in this order so ESP-NOW communication works from the start:
 
 1. **Bridge** — see [Bridge_ESP/README.md](Bridge_ESP/README.md)
 2. **EngRoom** — see [Engine_Room_ESP/README.md](Engine_Room_ESP/README.md)
 3. **DataPad** — see [Data_Pad/README.md](Data_Pad/README.md)
 
-Before flashing: power each board and connect to its WiFi AP to get the MAC address (see `board_utility/`), then update the peer MAC arrays in each sketch to match your hardware.
+Before flashing: run `MAC_address_retriver/` on each board to get its MAC address, then update the peer MAC arrays in each sketch to match your hardware.
 
 ### OTA updates (after initial flash)
 
@@ -78,13 +80,13 @@ Normal operation: WiFi off, ESP-NOW on channel 1.
 | `Data_Pad/` | 7" DataPad sketch and LVGL UI files |
 | `Data_Pad_240x320/` | 2.8" DataPad variant |
 | `WarpCore_ESP32/` | WarpCore ESP32 sketch |
-| `board_utility/` | Preloaded utility — WiFi AP captive portal shows MAC address, NVS clear buttons, OTA support |
-| `MAC_address_retriver/` | Utility — prints MAC address to serial monitor (legacy, see `board_utility/` instead) |
+| `Bridge_NVS_Clear/` | Utility — wipes Bridge WiFi credentials from NVS |
+| `EngRoom_NVS_Clear/` | Utility — wipes EngRoom WiFi credentials from NVS |
+| `MAC_address_retriver/` | Utility — reads and prints a board's MAC address |
 | `enterprise documentation/PCB Design/` | Gerbers, BOMs, pick-and-place for all 6 board designs |
 | `enterprise documentation/Data Pad stl/` | DataPad PADD case STL files |
 | `enterprise documentation/Warp_Core/` | Original Thingiverse WarpCore design archive (see below) |
 | `enterprise documentation/pcbs test prints/` | PCB test-fit prints — print before ordering boards |
-| `ASSEMBLY.md` | Build photos — FFC routing through the frame, speaker mounting, DataPad wiring |
 | `HARDWARE.md` | Full hardware reference |
 | `DEVNOTES.md` | Session logs, build history, fix queue, pending work |
 | `SOUND_MAP.md` | Sound file list and trigger map |
@@ -98,7 +100,7 @@ Normal operation: WiFi off, ESP-NOW on channel 1.
 
 ## WarpCore
 
-The WarpCore is a standalone unit with its own repository — [Enterprise-D-WarpCore](https://github.com/badbooger/Enterprise-D-WarpCore) — `WarpCore_ESP32/` is included here for reference. See the WarpCore repo for the full README, pin assignments, and build notes.
+The WarpCore is a standalone unit with its own repository — `WarpCore_ESP32/` is included here for reference. See the WarpCore repo for the full README, pin assignments, and build notes.
 
 The 3D model is based on **ST:TNG Warp Core by ElmoC** (Thingiverse thing:1656741). The original listing is no longer available online. A complete archive including all STL files, the original PCB files, and the original Arduino sketch is preserved in `enterprise documentation/Warp_Core/`. Licensed under Creative Commons Attribution — Non-Commercial — No Derivatives 3.0.
 
