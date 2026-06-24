@@ -6,20 +6,21 @@ All three sketches live in this folder. Read this before making changes.
 
 ## Next Session — Action Required
 
-**Session 43 (2026-06-23). Board utility ESP-NOW implemented, LCARS design story website built.**
+**Session 44 (2026-06-24). Website rewrite, Save WiFi hint, portable web server.**
 
 **Changes this session:**
 
+- **LCARS website restructured (9 pages):** Assembly page renamed "Lessons Learned" — rewritten as entertaining build stories (phantom short, GPIO 9 boot freeze, near-miss NVS clear, boot indicator payoff). Programming content moved to new Firmware page (startup coordination, offline routing, connection-lost handler, WiFi auto-revert, refinements, battery monitor). Warp Core page condensed to project overview — Power Notes moved to Hardware page. New Resources page (repos, community credits, model, boards, tools). Gallery populated with 26 photos in 7 sections. All `<code>` tags stripped site-wide. Session references removed. 1:900 scale corrected throughout.
+- **Save WiFi hint label:** Added `ui_LabelSaveHint` below Save WiFi button on DataPad Screen 3 — shows "Press again to disconnect" when saved, clears on manual or auto revert. Updated in `Data_Pad/` and `Data_Pad_Hero/` (both `ui_Screen3.c` and `.ino`). `Data_Pad_28/` got the label in `ui_Screen2.c` but SaveWifi is still a stub there.
+- **WebServer_ESP sketch (not in main repo):** Standalone portable web server on Hosyond 4.0" ESP32-E board. Serves the LCARS website from SD card over open WiFi AP ("Enterprise-D") with captive portal. LCARS-themed display with WiFi and GitHub QR codes. Uses ESPAsyncWebServer + SD (HSPI) + TFT_eSPI (ST7796S). `copy_to_sd.bat` script copies site files and patches CSS for local Antonio font (no internet on captive portal). Antonio woff2 downloaded to `site/fonts/`.
+- **Repo pushed:** Save WiFi hint label + DEVNOTES/HARDWARE doc updates.
+
+**Previous session (43, 2026-06-23):**
+
 - **`board_utility/board_utility.ino` — ESP-NOW PCB test commands added:** ESP-NOW send capability added to the board_utility web UI. New "PCB Test" card with 4 buttons (Asm ON, Asm OFF, All On, All Off) and an optional MAC target field. Broadcast by default (`FF:FF:FF:FF:FF:FF`), targeted if a MAC is entered — temporary peer registered/removed per send. Shared `struct_message` and 4 LED command constants copied in. Send-only, no receive callback. No changes to other sketches needed.
 - **`board_utility/README.md` updated:** "Testing a Newly Assembled PCB" section rewritten to lead with the new web UI method. Manual source-edit method kept as fallback.
-- **LCARS design story website built (`site/`):** 7-page static HTML/CSS/JS site converting the full `DESIGN_STORY.md` into an LCARS-themed website. Pages: Main Viewer (index), Design, Hardware, DataPad, Assembly, Warp Core, Gallery. CSS-only LCARS frame with elbow, sidebar nav, header/footer bars. Antonio font via Google Fonts CDN. Responsive mobile layout with sidebar drawer. Gallery page has lightbox viewer and 9 assembly reference photos. Content corrections applied: 1:900 scale, subscription kit terminology, battery box counts, FFC routing accuracy, flasher IC locations, AI coding agent section added, power distribution details.
-- **FFC over-engineering noted:** Entire stardrive draws 250–375mA — the dedicated 8-pin power FFC between neck and lower eng is unnecessary. A single 8-pin FFC with the 2 spare signal pins carrying power would have been sufficient. Noted in HARDWARE.md, DESIGN_STORY.md, and site hardware page.
-- **DY-SV17F speaker output corrected to mono:** Both speakers are wired in parallel, not stereo. Updated in site hardware page and DESIGN_STORY.md.
-- **Battle bridge pull-down resistor issue rediagnosed:** Originally attributed to a copper pour clearance fault in EasyEDA. Actual root cause: same GPIO 9 strapping pin issue discovered later with the nacelle. The pull-down resistor was pulling GPIO 9 LOW through the FFC at boot, putting the ESP into download mode. The 10kΩ→1.2kΩ base resistor change on the new boards explains why the nacelle triggered the boot freeze without a pull-down. Updated in HARDWARE.md, DESIGN_STORY.md, and site hardware page.
-- **Website content review — hardware page:** Footprint sourcing section expanded (Xiao footprint was the wrong one, not DY-SV17F). Neck PCB section corrected to match GPIO 9 rediagnosis. FFC over-engineering note added.
-- **Website content review — DataPad page:** Restructured and condensed. Neck assembly section moved to assembly page (with PCB revision correction). Volume routing rewritten as "Sound System" without session references. Two physical build sections merged into "Case Design and 3D Printing" + "Final Print". LCARS retheme, UI additions, touch sounds, and ambient audio condensed into compact sections. WiFi screen merged into DataPad Controls with OTA instructions. Red alert trimmed. Battery monitor added to controls description. All session references removed.
-- **Website content review — assembly page:** Neck assembly section added (moved from DataPad). Session number removed from full assembly heading. Subnav pills recolored.
-- **Website CSS fix:** Subnav pill text color was being overridden by `.lcars-content a` specificity — added `.lcars-content .lcars-pill { color: #1a1a1a }` to fix.
+- **LCARS design story website built (`site/`):** 7-page static HTML/CSS/JS site converting the full `DESIGN_STORY.md` into an LCARS-themed website. Initial build — subsequently rewritten in session 44.
+- **Hardware corrections found during website review:** FFC over-engineering noted, DY-SV17F speaker corrected to mono, battle bridge pull-down rediagnosed as GPIO 9 strapping pin, Xiao footprint sourcing corrected.
 
 **Previous session (42, 2026-06-23):**
 
@@ -60,9 +61,10 @@ How it works:
 Requires changes to all four sketches (Bridge, EngRoom, DataPad, WarpCore) + the utility. Struct does not change — reuses existing fields.
 
 **Pending (carried forward):**
-- Reflash model units: `Bridge_ESP_Model` (old Bridge board, new EngRoom MAC), `Data_Pad_Hero` (all session 39 changes), `Engine_Room_ESP` (GPIO 3 nacelle pin — after bodge wire done).
+- Reflash: `Data_Pad` + `Data_Pad_Hero` (Save WiFi hint label), `Bridge_ESP_Model` (new EngRoom MAC), `Engine_Room_ESP` (GPIO 3 nacelle pin — after bodge wire done).
 - GPIO 9 bodge wire on EngRoom PCB: mask GPIO 9 trace, jump to GPIO 3 for right nacelle.
 - Bridge board swap still pending — old boards in model, new boards on bench.
+- Website deploy: pick domain, set up nginx on Unraid with Cloudflare tunnel, or use GoDaddy hosting.
 
 ---
 
