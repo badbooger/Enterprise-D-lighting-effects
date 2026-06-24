@@ -30,9 +30,10 @@ bool        servicesStarted = false;
 uint8_t wifiChannel = 1;   // cached channel — updated from main task, safe to read in callbacks
 
 // ESP-NOW peer MACs
-uint8_t broadcastAddress1[]        = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00}; // EngRoom — run MAC_address_retriver on your board
-uint8_t broadcastAddress2[]        = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00}; // Bridge — run MAC_address_retriver on your board
-uint8_t broadcastAddressWarpCore[] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00}; // WarpCore — run MAC_address_retriver on your board
+uint8_t broadcastAddress1[]        = {0x80, 0xF1, 0xB2, 0x60, 0x6F, 0x54}; // EngRoom
+// uint8_t broadcastAddress2[]     = {0xe0, 0x72, 0xa1, 0xd7, 0x37, 0x14}; // Bridge — model install
+uint8_t broadcastAddress2[]        = {0x80, 0xf1, 0xb2, 0xcc, 0x46, 0x5c}; // Bridge — bench test
+uint8_t broadcastAddressWarpCore[] = {0x20, 0x6e, 0xf1, 0x31, 0xda, 0x54}; // WarpCore
 uint8_t broadcastAll[]             = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 
 // ── LED command constants (must match Bridge and EngRoom exactly) ─────────────
@@ -785,6 +786,7 @@ void loop() {
           lv_obj_add_state(ui_Button50, LV_STATE_DEFAULT);
           lv_label_set_text(lv_obj_get_child(ui_Button50, 0), "SAVE WIFI");
           lv_label_set_text(ui_Label15, "WiFi lost — reverted");
+          if (ui_LabelSaveHint) lv_label_set_text(ui_LabelSaveHint, "");
           lv_label_set_text(ui_Label8, "ALL UNITS OFFLINE");
           if (ui_BridgeStatusBtn) {
             lv_label_set_text(lv_obj_get_child(ui_BridgeStatusBtn, 0), "BRIDGE\nOFFLINE");
@@ -1540,6 +1542,7 @@ void SaveWifi(lv_event_t *e) {
     lv_obj_add_state(ui_Button50, LV_STATE_CHECKED);
     lv_label_set_text(lv_obj_get_child(ui_Button50, 0), "WIFI SAVED");
     lv_label_set_text(ui_Label15, "Saved & Connecting...");
+    if (ui_LabelSaveHint) lv_label_set_text(ui_LabelSaveHint, "Press again to\ndisconnect");
     Serial.printf("WiFi credentials saved: %s\n", pending_ssid);
 
   } else {
@@ -1549,5 +1552,6 @@ void SaveWifi(lv_event_t *e) {
     lv_obj_add_state(ui_Button50,   LV_STATE_DEFAULT);
     lv_label_set_text(lv_obj_get_child(ui_Button50, 0), "SAVE WIFI");
     lv_label_set_text(ui_Label15, "WiFi Cleared");
+    if (ui_LabelSaveHint) lv_label_set_text(ui_LabelSaveHint, "");
   }
 }

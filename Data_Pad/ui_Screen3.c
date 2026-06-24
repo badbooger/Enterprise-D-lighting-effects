@@ -30,6 +30,7 @@ lv_obj_t * ui_Button50 = NULL;
 lv_obj_t * ui_Label25 = NULL;
 lv_obj_t * ui_WarpCoreStsBtn = NULL;
 lv_obj_t * ui_LabelWCIP = NULL;
+lv_obj_t * ui_LabelSaveHint = NULL;
 // event funtions
 void ui_event_TextArea1(lv_event_t * e)
 {
@@ -403,6 +404,16 @@ void ui_Screen3_screen_init(void)
     lv_obj_set_style_text_opa(ui_Label25, 255, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_text_font(ui_Label25, &lv_font_montserrat_10, LV_PART_MAIN | LV_STATE_DEFAULT);
 
+    ui_LabelSaveHint = lv_label_create(ui_Screen3);
+    lv_obj_set_width(ui_LabelSaveHint, LV_SIZE_CONTENT);
+    lv_obj_set_height(ui_LabelSaveHint, LV_SIZE_CONTENT);
+    lv_obj_set_x(ui_LabelSaveHint, 318);
+    lv_obj_set_y(ui_LabelSaveHint, 48);
+    lv_obj_set_align(ui_LabelSaveHint, LV_ALIGN_CENTER);
+    lv_label_set_text(ui_LabelSaveHint, "");
+    lv_obj_set_style_text_font(ui_LabelSaveHint, &lv_font_montserrat_10, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_align(ui_LabelSaveHint, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN | LV_STATE_DEFAULT);
+
     lv_obj_add_event_cb(ui_TextArea1, ui_event_TextArea1, LV_EVENT_ALL, NULL);
     lv_obj_add_event_cb(ui_TextArea2, ui_event_TextArea2, LV_EVENT_ALL, NULL);
     lv_obj_add_event_cb(ui_Label12, ui_event_Label12, LV_EVENT_ALL, NULL);
@@ -448,5 +459,6 @@ void ui_Screen3_screen_destroy(void)
     ui_Label25 = NULL;
     ui_WarpCoreStsBtn = NULL;
     ui_LabelWCIP = NULL;
+    ui_LabelSaveHint = NULL;
 
 }

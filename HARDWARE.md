@@ -9,7 +9,7 @@ The model splits into two physical sections, each with its own ESP32 and PCB sta
 | Saucer (Bridge) | ESP32-S3 | 3 custom PCBs | 8-pin + 15-pin |
 | Stardrive (EngRoom) | Xiao ESP32-C3 | 4 custom PCBs | 8-pin x2 |
 
-Power distribution uses JST Micro 1.25 connectors throughout.
+Power distribution uses JST Micro 1.25 connectors throughout. The stardrive's two 8-pin FFCs (one signal, one power) are over-engineered — the entire stardrive draws 250–375mA, well within a single cable using the 2 spare signal pins for power.
 
 ---
 
@@ -134,7 +134,7 @@ For a board revision:
 | Group | Pins | Description |
 |-------|------|-------------|
 | Windows | 3 pins (individual) | 3 addressable window groups: neck all (GPIO 20 — back of neck + both battle bridges wired together), eng top (GPIO 7), eng bot (GPIO 21) |
-| Nacelles | 2 pins (1 group) | Port (GPIO 8) + starboard (GPIO 9) warp nacelles |
+| Nacelles | 2 pins (1 group) | Port (GPIO 8) + starboard (GPIO 3) warp nacelles |
 | Deflector | 1 pin | Deflector dish (GPIO 6) |
 | Photon torpedoes | 1 pin | Forward torpedo launcher — GPIO 4, own 1.2kΩ resistor on neck PCB (see revision note below) |
 | Impulse engines | 1 pin | Stardrive impulse (GPIO 10) |
@@ -452,11 +452,13 @@ Organised by connector for easy lookup during assembly:
 
 ### Pull-down resistors — do not fit, do not include in future revisions
 
-The Left Battle Bridge board had a fault where fitting the base pull-down resistor caused all LEDs on the board to stay permanently on. Root cause traced to the GND pad of the pull-down footprint being connected to the wrong net via the copper pour (EasyEDA clearance issue) — confirmed by multimeter showing a direct short where the schematic showed no connection. Replacing all SMD components made no difference; the fault is in the PCB copper.
+The Left Battle Bridge board had a fault where fitting the base pull-down resistor caused all LEDs on the board to stay permanently on. Originally attributed to a copper pour clearance fault in EasyEDA, but testing never confirmed a direct short.
 
-**Resolution:** pull-down resistors removed from all battle bridge boards. Board operates correctly without them.
+**Actual root cause (identified retroactively):** The battle bridge signal ran through the FFC back to GPIO 9 on the ESP32-C3 — the BOOT strapping pin. The pull-down resistor was pulling GPIO 9 LOW at power-on through the FFC, putting the chip into download mode. With the ESP in download mode, GPIO pins floated undefined, turning transistors on and keeping LEDs permanently lit. Same root cause as the later GPIO 9 nacelle boot freeze (see strapping pin fix 2026-06-18 above). The original boards used 10kΩ base resistors — on their own not enough to trigger the strapping pin, but the pull-down on top tipped it over. The revised boards changed to 1.2kΩ base resistors, which pull almost 10× harder — that's why the nacelle on GPIO 9 triggered the boot freeze on new boards without any pull-down at all.
 
-**Design decision:** do not include base pull-down resistors on any future board revisions. The ESP32 drives all LED pins as `OUTPUT` and actively holds them LOW when not commanded — this is lower impedance than any external pull-down resistor and makes the resistors redundant. The only window where pins can float is the brief boot period before `setup()` runs, which is not a concern for this application.
+**Resolution:** pull-down resistors removed from all battle bridge boards. Without the extra pull-down, the 10kΩ base resistor alone wasn't strong enough to hold GPIO 9 low at boot. Board operates correctly without them.
+
+**Design decision:** do not include base pull-down resistors on any future board revisions. The ESP32 drives all LED pins as `OUTPUT` and actively holds them LOW when not commanded — this is lower impedance than any external pull-down resistor and makes the resistors redundant.
 
 ---
 
@@ -637,7 +639,7 @@ To power off from software: `digitalWrite(7, LOW)`.
 **Board:** Arduino Nano ESP32 (drop-in replacement for original Arduino Nano)
 **Sketch:** `WarpCore_ESP32/WarpCore_ESP32.ino`
 **mDNS:** `WarpCore.local`
-**MAC:** `00:00:00:00:00:00`
+**MAC:** `20:6e:f1:31:da:54`
 
 Original Arduino Nano sketch (`WarpCore/WarpCore.ino`) kept as reference only — uses SoftPWM library, AVR-only, not portable to ESP32.
 

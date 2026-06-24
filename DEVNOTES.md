@@ -6,15 +6,230 @@ All three sketches live in this folder. Read this before making changes.
 
 ## Next Session — Action Required
 
+**Session 43 (2026-06-23). Board utility ESP-NOW implemented, LCARS design story website built.**
+
+**Changes this session:**
+
+- **`board_utility/board_utility.ino` — ESP-NOW PCB test commands added:** ESP-NOW send capability added to the board_utility web UI. New "PCB Test" card with 4 buttons (Asm ON, Asm OFF, All On, All Off) and an optional MAC target field. Broadcast by default (`FF:FF:FF:FF:FF:FF`), targeted if a MAC is entered — temporary peer registered/removed per send. Shared `struct_message` and 4 LED command constants copied in. Send-only, no receive callback. No changes to other sketches needed.
+- **`board_utility/README.md` updated:** "Testing a Newly Assembled PCB" section rewritten to lead with the new web UI method. Manual source-edit method kept as fallback.
+- **LCARS design story website built (`site/`):** 7-page static HTML/CSS/JS site converting the full `DESIGN_STORY.md` into an LCARS-themed website. Pages: Main Viewer (index), Design, Hardware, DataPad, Assembly, Warp Core, Gallery. CSS-only LCARS frame with elbow, sidebar nav, header/footer bars. Antonio font via Google Fonts CDN. Responsive mobile layout with sidebar drawer. Gallery page has lightbox viewer and 9 assembly reference photos. Content corrections applied: 1:900 scale, subscription kit terminology, battery box counts, FFC routing accuracy, flasher IC locations, AI coding agent section added, power distribution details.
+- **FFC over-engineering noted:** Entire stardrive draws 250–375mA — the dedicated 8-pin power FFC between neck and lower eng is unnecessary. A single 8-pin FFC with the 2 spare signal pins carrying power would have been sufficient. Noted in HARDWARE.md, DESIGN_STORY.md, and site hardware page.
+- **DY-SV17F speaker output corrected to mono:** Both speakers are wired in parallel, not stereo. Updated in site hardware page and DESIGN_STORY.md.
+- **Battle bridge pull-down resistor issue rediagnosed:** Originally attributed to a copper pour clearance fault in EasyEDA. Actual root cause: same GPIO 9 strapping pin issue discovered later with the nacelle. The pull-down resistor was pulling GPIO 9 LOW through the FFC at boot, putting the ESP into download mode. The 10kΩ→1.2kΩ base resistor change on the new boards explains why the nacelle triggered the boot freeze without a pull-down. Updated in HARDWARE.md, DESIGN_STORY.md, and site hardware page.
+- **Website content review — hardware page:** Footprint sourcing section expanded (Xiao footprint was the wrong one, not DY-SV17F). Neck PCB section corrected to match GPIO 9 rediagnosis. FFC over-engineering note added.
+- **Website content review — DataPad page:** Restructured and condensed. Neck assembly section moved to assembly page (with PCB revision correction). Volume routing rewritten as "Sound System" without session references. Two physical build sections merged into "Case Design and 3D Printing" + "Final Print". LCARS retheme, UI additions, touch sounds, and ambient audio condensed into compact sections. WiFi screen merged into DataPad Controls with OTA instructions. Red alert trimmed. Battery monitor added to controls description. All session references removed.
+- **Website content review — assembly page:** Neck assembly section added (moved from DataPad). Session number removed from full assembly heading. Subnav pills recolored.
+- **Website CSS fix:** Subnav pill text color was being overridden by `.lcars-content a` specificity — added `.lcars-content .lcars-pill { color: #1a1a1a }` to fix.
+
+**Previous session (42, 2026-06-23):**
+
+- **New saucer PCB assembled for testing.** MAC: `80:f1:b2:cc:46:30`. Used forced `asmMode = true` in a copy of Bridge sketch (`Bridge_ESP_asm_mode_on/`) to verify solder joints — no DataPad needed.
+- **`board_utility/README.md` updated:** added "Testing a Newly Assembled PCB" section — documents how to force assembly mode on boot for both Bridge and EngRoom to verify solder connections without needing a DataPad.
+
+**Planned — board_utility assembly mode (build next session):**
+
+Add ESP-NOW to the board_utility sketch so it can send assembly mode and basic LED commands from the web UI. Two send modes:
+
+- **Broadcast (default):** sends to `FF:FF:FF:FF:FF:FF` — hits every ESP-NOW device on ch1. No MAC addresses needed. Good for fresh boards.
+- **Targeted:** optional MAC text field in the web UI. If populated, registers that MAC as an ESP-NOW peer and sends directly.
+
+Commands to support: `LED_ASSEMBLY_MODE` on/off, `LED_ON` (all groups), `LED_ALL_OFF`. Uses the shared `struct_message` (same layout so receiving sketches accept it). Send-only — no receive callback needed. Already running `WIFI_AP_STA` so ESP-NOW works on the STA interface with no changes to AP/captive-portal behavior.
+
+Web UI adds a "PCB Test" card below the existing NVS section:
+```
+Target: [__MAC field__] (empty = broadcast)
+[Asm ON] [Asm OFF] [All On] [All Off]
+```
+
+**Planned — standalone controller (future):**
+
+A separate sketch (not crammed into board_utility) that replaces the DataPad for users who don't want to build the touchscreen hardware. Same ESP-NOW control, served as a responsive web UI from any ESP32 dev board over its own AP. Could incorporate the LD2410C mmWave sensor on a UART pin. USB powered, no custom PCB needed. Would support the full command set: startup/shutdown sequences, sync mode, timing controls, sound. LCARS CSS theming.
+
+**Planned — NVS-based MAC provisioning (future, requires all sketch changes):**
+
+Instead of hardcoding peer MAC arrays in each sketch, store them in NVS. The board_utility (or standalone controller) pushes MAC assignments to boards over ESP-NOW broadcast — no need to know the target's MAC to configure it.
+
+How it works:
+- New command constant (e.g. `SET_PEER_MAC`, next available = 32). `ledGroup` = which peer slot (1=Bridge, 2=EngRoom, 3=DataPad, 4=WarpCore). 6-byte MAC packed into `ssid1[]`.
+- Broadcast with target `boardInd` in the message — every board receives it, only the addressed board processes it.
+- Each sketch's `setup()` reads peer MACs from NVS keys (`peer_brg`, `peer_eng`, `peer_dp`, `peer_wc`), falls back to current hardcoded defaults if not set.
+- After storing, sketch re-registers the ESP-NOW peer with the new MAC.
+- Utility web UI: fields for each board's MAC, "Push Config" button. Optional "Read Current" to ask boards to report stored peers.
+- Eliminates the "reflash everything when a board is swapped" problem. Hardcoded defaults mean existing behavior is unchanged until actively configured.
+
+Requires changes to all four sketches (Bridge, EngRoom, DataPad, WarpCore) + the utility. Struct does not change — reuses existing fields.
+
+**Pending (carried forward):**
+- Reflash model units: `Bridge_ESP_Model` (old Bridge board, new EngRoom MAC), `Data_Pad_Hero` (all session 39 changes), `Engine_Room_ESP` (GPIO 3 nacelle pin — after bodge wire done).
+- GPIO 9 bodge wire on EngRoom PCB: mask GPIO 9 trace, jump to GPIO 3 for right nacelle.
+- Bridge board swap still pending — old boards in model, new boards on bench.
+
+---
+
+**Session 40 complete (2026-06-18). Repo cleanup — MAC addresses scrubbed, board_utility sketch created, NVS clear sketches consolidated.**
+
+**Changes this session:**
+
+- **Repo MAC address scrub:** All real MAC addresses removed from `Repo output/` for public GitHub repo. Sketch peer MAC arrays zeroed to `{0x00, ...}` with "run MAC_address_retriver on your board" comments (`Bridge_ESP.ino`, `Data_Pad.ino`, `Engine_Room_ESP.ino`). MAC references in `DEVNOTES.md` (~12 instances), `HARDWARE.md`, and `Engine_Room_ESP/README.md` replaced with `<redacted>`. `WarpCore_ESP32.ino` was already clean.
+- **Data_Pad.ino repo sync:** Repo copy was stale — missing the `ledValue > 0` guard on Bridge battery alerts (session 39 fix). Synced to repo.
+- **`board_utility/` sketch created:** Standalone ESP32 utility preloaded on boards. Starts WiFi AP (`enterprise` / `ncc-1701-d`), runs captive portal that auto-opens a webpage showing the board's STA MAC address. Includes NVS clear buttons (Bridge, EngRoom, DataPad, WarpCore, Clear All) and ArduinoOTA. No serial monitor or WiFi credential editing needed — connect phone/laptop to AP, get MAC, clear NVS if needed.
+- **`Bridge_NVS_Clear/` and `EngRoom_NVS_Clear/` removed from repo:** NVS clear functionality consolidated into `board_utility`. Old sketches required hardcoding WiFi credentials; new utility uses its own AP instead.
+- **Repo pushed:** Three commits — MAC redaction, board_utility addition with NVS clear, rename from `web_mac_address` to `board_utility`.
+
+**Pending:**
+- Reflash model units: `Bridge_ESP_Model` (old Bridge board, new EngRoom MAC), `Data_Pad_Hero` (all session 39 changes), `Engine_Room_ESP` (GPIO 3 nacelle pin — after bodge wire done).
+- GPIO 9 bodge wire on EngRoom PCB: mask GPIO 9 trace, jump to GPIO 3 for right nacelle.
+- Bridge board swap still pending — old boards in model, new boards on bench.
+
+---
+
 **Session 39 complete (2026-06-18). New EngRoom board installed in model. PCB fixes, ESP swap, GPIO 9 strapping pin fix, broadcast WiFi push.**
 
 **Changes this session:**
 
 - **EngRoom PCB nacelle polarity fix:** Left and right nacelle connector footprints had positive and negative pads reversed. Discovered during assembly — nacelle LEDs would not light with correct wiring polarity. PCB updated in EasyEDA and new Gerbers exported (`EngRoomPCB.zip`). No firmware change needed.
-- **EngRoom ESP replaced — new MAC `<redacted>`:** Xiao ESP32-C3 swapped out. Previous MAC `<redacted>`. Updated in `Bridge_ESP.ino`, `Data_Pad.ino`, all model sketches, docs.
-- **GPIO 9 strapping pin fix (`Engine_Room_ESP.ino`):** Right nacelle on GPIO 9 caused boot freeze — GPIO 9 is the BOOT strapping pin on ESP32-C3. `PIN_NAC_R` changed from 9 to 3. PCB updated.
-- **Broadcast WiFi push (`Data_Pad.ino`):** SaveWifi sends credentials via ESP-NOW broadcast (`FF:FF:FF:FF:FF:FF`) first, then unicast fallback. 500ms delays prevent channel shift from killing the broadcast frame.
-- **EngRoom MAC in WiFi status response (`Engine_Room_ESP.ino`):** WiFi connect success response includes `WiFi.macAddress()` in `ssid1` field for diagnostic confirmation on DataPad Screen 3.
+- **EngRoom ESP replaced — new MAC `80:F1:B2:60:6F:54`:** Xiao ESP32-C3 swapped out. Previous MAC `3c:dc:75:ae:da:fc`. Updated in `Bridge_ESP.ino`, `Data_Pad.ino`, `Data_Pad_Hero.ino`, `Bridge_ESP_Model.ino`, `PROJECT_REFERENCE.md`, `GPIO outputs EngRoom.txt`, `CLAUDE.md`.
+- **GPIO 9 strapping pin fix (`Engine_Room_ESP.ino`):** Right nacelle on GPIO 9 caused boot freeze — GPIO 9 is the BOOT strapping pin on ESP32-C3, and the 1.2kΩ base resistor into the NPN transistor pulled it LOW at power-on, putting the chip into download mode. `PIN_NAC_R` changed from 9 to 3. Hardware workaround: solder mask GPIO 9 trace, jump wire to GPIO 3. PCB updated in EasyEDA. Old board was unaffected — nacelles were on GPIO 2/3, not strapping pins.
+- **`Engine_Room_ESP_Model/` deleted:** Old EngRoom board no longer in model — new board installed. Only `Engine_Room_ESP.ino` remains.
+- **Model sketch MAC updates:** `Bridge_ESP_Model.ino` — EngRoom peer updated from old board `cd:b8` to new `80:F1:B2:60:6F:54`. `Data_Pad_Hero.ino` — same. `Engine_Room_ESP.ino` — DataPad peer updated from bench `a6:f3:4c` to model `a9:a1:14` (Bridge peer was already correct).
+- **Broadcast WiFi push (`Data_Pad.ino`, `Data_Pad_Hero.ino`):** SaveWifi now sends credentials via ESP-NOW broadcast (`FF:FF:FF:FF:FF:FF`) first, then unicast to all registered peers as fallback. 500ms delay between broadcast and unicast, and another 500ms before DataPad starts its own WiFi connect — prevents channel shift from killing the broadcast frame before it transmits. Broadcast peer registered in setup on both DataPad sketches.
+- **EngRoom MAC in WiFi status response (`Engine_Room_ESP.ino`):** WiFi connect success response now includes `WiFi.macAddress()` in the `ssid1` field. DataPad displays IP + MAC on Label18 (Screen 3) for diagnostic confirmation.
+- **Bridge battery alert guard (`Data_Pad.ino`, `Data_Pad_Hero.ino`):** Battery alert logic now skips when `ledValue == 0` (no ADC hardware). Old Bridge board has no voltage divider — was sending 0mV every 30s, triggering red alert repeatedly. Display still updates (shows 0%/`--%%`), alerts resume when real readings arrive from new boards.
+- **Hero DataPad mDNS renamed (`Data_Pad_Hero.ino`):** `mdnsName` changed from `"DataPad"` to `"HeroDataPad"`. Both DataPads plugged in simultaneously now show as distinct OTA targets in Arduino IDE (`HeroDataPad.local` vs `DataPad.local`).
+- **Stardrive power consumption measured:** EngRoom section on bench supply draws 275–325mA at 7.4V with everything on, settling near 275mA (~2W).
+
+**Pending:**
+- Reflash model units: `Bridge_ESP_Model` (old Bridge board, new EngRoom MAC), `Data_Pad_Hero` (all session 39 changes), `Engine_Room_ESP` (GPIO 3 nacelle pin — after bodge wire done).
+- GPIO 9 bodge wire on EngRoom PCB: mask GPIO 9 trace, jump to GPIO 3 for right nacelle.
+- Bridge board swap still pending — old boards in model, new boards on bench.
+
+---
+
+**Session 38 complete (2026-06-13). Pocket remote startup-mode bug fixed; Red Alert root cause found (edits had landed on the wrong DataPad sketch); old EngRoom board sketch created.**
+
+**Changes this session:**
+
+- **Pocket remote `PowerUpAll()` rewritten (`Data_Pad_28.ino`):** now mirrors `Data_Pad.ino`'s leader-dispatch pattern using `bridgeOnline`/`engRoomOnline` — sends `LED_STARTUP` to Bridge only when both units are online (Bridge relays to EngRoom at step 10), avoiding the previous `sendBoth()` relay/restart loop that made the remote's power-on always look like "separated mode". `assembled` is hardcoded `true` (remote has no live sync-mode tracking) — flagged to user as fine for now since the remote is mainly used with the model assembled.
+- **Red Alert root cause found:** last session's Red Alert trigger handling (`boardInd==3 && status==5` → `RedAlertStart()`) and the pocket-remote power/damage UI-mirror block were added to `Data_Pad/Data_Pad.ino` — the **bench/new-board** 7" sketch — instead of `Data_Pad_Hero/Data_Pad_Hero.ino`, the sketch actually flashed to the 7" unit in the model. Ported both blocks into `Data_Pad_Hero.ino`'s `handleReceivedData()`. `Data_Pad.ino` keeps its copy too — user wants it left in place since it'll become the new-board sketch once that board is installed.
+- **`Engine_Room_ESP_Model/Engine_Room_ESP_Model.ino` created:** new sketch for the old EngRoom board in the model (`3c:dc:75:ae:cd:b8`). Copied from `Engine_Room_ESP.ino` (which already had pocket-remote integration from last session), then: fixed the DataPad peer MAC (was the bench/test-board MAC `...a6:f3:4c`, now the model MAC `20:6e:f1:a9:a1:14`); GPIO/IDX/`STARTUP_SEQ` rewritten for the old board's 11-pin, 5-window layout (GPIO 2/3 = right/left nacelle, GPIO 8/9 = right/left battle bridge, no battery ADC); removed `readBatteryVolts()`/`PIN_BAT_ADC`/ADC setup and the `LED_BAT_LEVEL` status-ping block (old board has no ADC divider, GPIO 2 is reused as a nacelle pin). **Not yet flashed — first-time flash to the old EngRoom board.**
+- **`sounds/copy_to_remote_player.bat` created:** same 44-file sound set as the DataPad's loader script, copies into a `/sounds/` subfolder on the pocket remote's SD card (remote firmware reads `/sounds/00001.mp3` etc., DataPad reads from card root).
+- **Doc-accuracy pass (CLAUDE.md, PROJECT_REFERENCE.md, HARDWARE.md)** — root cause of the Red Alert bug was `Data_Pad_Hero.ino` being completely missing from the Units tables, so last session's edits landed on the wrong sketch. Fixed:
+  - Added `Data_Pad_Hero/Data_Pad_Hero.ino` as the model 7" DataPad sketch in both CLAUDE.md and PROJECT_REFERENCE.md Units tables; relabeled `Data_Pad/Data_Pad.ino` as bench/new-board. Added a naming-exception note for "Hero" (named for the hero-shot photo build, not `Data_Pad_Model`).
+  - Same fix for Bridge: `Bridge_ESP_Model.ino` (model) vs `Bridge_ESP.ino` (bench/new board) — CLAUDE.md and PROJECT_REFERENCE.md both previously listed `Bridge_ESP.ino` as "installed in model", which was wrong.
+  - CLAUDE.md's EngRoom GPIO Pinout table split into "New board (`Engine_Room_ESP.ino`, bench, not yet installed)" and "Old board (`Engine_Room_ESP_Model.ino`, currently installed in model)" — the old-board layout reconstructed for the new sketch above is now documented centrally.
+  - PROJECT_REFERENCE.md's EngRoom MAC row was listing only `da:fc` (the not-installed board) with no label — split into model (`cd:b8`) / bench-not-installed (`da:fc`) rows to match CLAUDE.md.
+  - HARDWARE.md's EngRoom PCB revision note (line ~148) reworded — dropped "(new boards fitted 2026-05-28)... confirmed working" phrasing that implied the new GPIO layout was already in the model; now describes it as a bench-confirmed PCB design fact.
+
+**Pending:**
+- **Reflash for this session's changes:** `Data_Pad_Hero/Data_Pad_Hero.ino` (7" DataPad, model — Red Alert fix), `Data_Pad_240x320/Data_Pad_28/Data_Pad_28.ino` (pocket remote — PowerUpAll fix), `Engine_Room_ESP_Model/Engine_Room_ESP_Model.ino` (old EngRoom board, model — first flash, new sketch).
+- After reflashing: verify Red Alert works from the pocket remote; verify power-on brings up Bridge+EngRoom together without the restart/relay-loop glitch; verify each EngRoom LED group lights correctly on the old-board GPIO remap (reconstructed from notes, not yet hardware-tested).
+- Board swap: install the session 36 new boards (Bridge, EngRoom, nacelle) and flash `Bridge_ESP_Model` via USB.
+- WarpCore sensor housing/calibration — fit the new (already printed) base, wire LD2410C UART to a spare Nano, calibrate via HLKRadarTool.
+- Pocket remote → repo: once 2.8" remote tested, add `Data_Pad_240x320/` to public repo.
+
+---
+
+**Session 37 complete (2026-06-13). Old model Bridge board recovered; EngRoom startup relay bug fixed and verified.**
+
+**Changes this session:**
+
+- **Old model Bridge board recovered:** previously thought locked up/OTA-unreachable. Reflashed and powered up — board itself was not dead. Root cause uncertain: likely a bad/interrupted OTA upload (possibly tied to the long pre-OTA boot delay) and/or a leftover dummy cell in the power pack shorting the pack — removed.
+- **EngRoom startup relay bug fixed:** `Bridge_ESP_Model.ino`'s EngRoom peer (`broadcastAddress1`) was `3c:dc:75:ae:da:fc` (the bench/new, not-yet-installed EngRoom board) — wrong. The EngRoom board actually in the model is the **old board, `3c:dc:75:ae:cd:b8`**. Fixed, reflashed, and verified — startup relay to EngRoom now works.
+- **CLAUDE.md corrections:** EngRoom MAC table split into "model, old board" (`cd:b8`) and "bench / new board, not yet installed" (`da:fc`) rows, mirroring Bridge's model/bench split. Added a naming-convention note: `_Model` suffix = targets old/model hardware; no suffix = targets new bench-tested boards. `Data_Pad.ino` / `Engine_Room_ESP.ino` have no `_Model` variant and correctly target the new boards — their MACs should not be "fixed" to match old-board MACs.
+- **History correction:** session 28-30's note that a new EngRoom board (`da:fc`) was "fully assembled in model" was wrong — that board was bench-tested only, never installed. **None of the session 36 new boards (Bridge, EngRoom, nacelle) have been installed** — all bench-tested, functioning as expected, awaiting install.
+
+**Pending:**
+- Board swap: install the session 36 new boards (Bridge, EngRoom, nacelle) and flash `Bridge_ESP_Model` via USB.
+- WarpCore sensor housing/calibration — fit the new (already printed) base, wire LD2410C UART to a spare Nano, calibrate via HLKRadarTool.
+- Pocket remote → repo: once 2.8" remote tested, add `Data_Pad_240x320/` to public repo.
+
+---
+
+**Session 36 complete (2026-06-09). Board assembly complete — all boards ready for installation.**
+
+**Changes this session:**
+
+- **Nacelle LED resistors confirmed:** Parallel-pair groups (3 pairs of 2 LEDs, each pair sharing one resistor) use **240Ω**. Two single LEDs (both through-hole components) each use **470Ω** to match pair brightness (~8.75mA each at 7.4V nominal). Nav lights resistor left unchanged at **1.2kΩ**.
+- **Voltage divider confirmed fitted:** Both Bridge and EngRoom new boards have the correct **270kΩ + 100kΩ** ADC resistors populated. ADC calibrated against bench supply across 6.0V–8.4V — multiplier updated from 3.70 → **3.83** in both sketches. Accurate to within 1% across the full range.
+- **All boards assembled** — Bridge, EngRoom, and nacelle PCBs built and ready for installation in model.
+- **`Nacelle_Test/Nacelle_Test.ino` created:** USB test sketch for Xiao ESP32-C3 — sets GPIO 8 (left nacelle) and GPIO 9 (right nacelle) HIGH at full brightness to verify LED fit before closing up.
+
+---
+
+**Session 35 complete (2026-06-08). 2.8" pocket remote sketch built.**
+
+**Changes this session:**
+
+- **New concept:** 2.8" Waveshare ESP32-S3 board repurposed as a simple pocket handheld remote. Single-screen LCARS-styled UI. 7" DataPad continues to work normally.
+- **`Data_Pad_240x320/Data_Pad_28/ui_Screen1.c` rewritten:** 6-button LCARS layout replaces the old 5-button clone layout. Buttons: POWER, RED ALERT, DAMAGE CTRL, SOUND 1, SOUND 2, STOP SOUND. Black background, rectangular amber/red/blue/purple buttons, "USS ENTERPRISE NCC-1701-D" on the orange top bar. Battery voltage shown in status area.
+- **`Data_Pad_240x320/Data_Pad_28/ui_Screen1.h` updated:** New externs for ui_Button52 (Red Alert), ui_Button53/54/55 (sound), ui_LabelRedAlert, ui_LabelBat.
+- **`Data_Pad_240x320/Data_Pad_28/ui_events.h` updated:** Added RedAlertTrigger, SoundPlay1, SoundPlay2, SoundStop declarations.
+- **`Data_Pad_240x320/Data_Pad_28/Data_Pad_28.ino` updated:** `USE_LOCAL_AUDIO` enabled. 7" DataPad MAC (`20:6e:f1:a9:a1:14`) registered as 3rd ESP-NOW peer (`broadcastAddress3`). Added `sendDataPad()` helper. Added `RedAlertTrigger()` — sends `boardInd=3, status=5` to the 7" DataPad. Added `BAT_Init()` in setup and `updateBatDisplay()` called every 10s. mDNS changed to `DataPad2.local` to avoid collision with 7" DataPad. Screen2/BridgeSound navigation removed; stub handlers kept compiled. No shared struct or ledCmd constants changed.
+- **`Data_Pad_240x320/Data_Pad_28/BAT_Driver.h` / `BAT_Driver.cpp` added:** Copied from `Display examples/ESP32-S3-Touch-LCD-2.8-Demo/`. GPIO 8, 12-bit ADC, 3× divider, offset 0.990476, returns float volts.
+- **`Data_Pad/Data_Pad.ino` (7" DataPad) updated:** 4 lines added to `handleReceivedData()` — checks `boardInd==3 && status==5` and calls `RedAlertStart(NULL)`. This lets the pocket remote trigger the DataPad's existing red alert screen (shows ui_RedAlert, plays file 28 voiced klaxon, auto-dismisses after 60s). No new ledCmd constants.
+
+- **Touch double-init bug fixed (`Display_ST7789.cpp`, `Data_Pad_28.ino`):** `LCD_Init()` was calling `Touch_Init()` internally at the end of the function. If setup() also called `Touch_Init()` explicitly (as Waveshare's own demo does), `Wire1.begin()` and `attachInterrupt()` were called twice — can hang the I2C bus and corrupt serial output. Fix: removed `Touch_Init()` from inside `LCD_Init()`. Added explicit `Touch_Init()` call in setup() between `LCD_Init()` and `Lvgl_Init()`, where it's visible and can only be called once.
+- **Web server removed from `Data_Pad_28.ino`:** `AsyncTCP` and `ESPAsyncWebServer` includes, `AsyncWebServer server(80)`, the full `setupWebServer()` function, and the `server.begin()` / `MDNS.addService("http","tcp",80)` calls in `startWifiServices()` are all gone. WiFi credentials are now set via `#define WIFI_SSID` / `#define WIFI_PASS` at the top of the sketch — fill in, flash once, and the credentials auto-save to NVS on first successful connect. Future OTA flashes can leave the defines blank; saved NVS values are used automatically. OTA and mDNS still work as before.
+
+**Pending (pre-flash):**
+- Flash **2.8" pocket remote** (new sketch).
+- Flash **7" DataPad** (picks up 4-line receive handler change).
+- Bridge and EngRoom: no reflash needed.
+- **Sound slots:** SND_FILE_1=1 and SND_FILE_2=2 are placeholders. User to decide which tracks to put on the 2.8"'s SD card and update constants accordingly. SD card files go in `/sounds/` as `00001.mp3`, `00002.mp3`, etc.
+
+**Pending (ongoing):**
+- ~~Old model boards locked up — OTA not reachable. Must open model to reflash. Plan: open model, swap to new boards (correct 270kΩ ADC resistors), flash `Bridge_ESP_Model` via USB.~~ **DONE session 36** — new boards assembled with correct 270kΩ + 100kΩ ADC resistors; ready for installation.
+- WarpCore sensor housing/calibration — fit the new (already printed) base, wire LD2410C UART to a spare Nano, calibrate via HLKRadarTool.
+- ~~Nacelle warp-flash resistor bench testing — user to try standard values ≥220Ω and report back which looks best.~~ **DONE session 36** — 240Ω for parallel pairs, 470Ω for single LED, 1.2kΩ for nav lights.
+- **Pocket remote → repo:** Once the 2.8" remote is tested and confirmed working, add `Data_Pad_240x320/` to the public repo (currently excluded by .gitignore). MAC-zero the peer arrays before publishing.
+
+---
+
+**Session 34 complete (2026-06-08). Main repo made public. WarpCore repo published — GitHub publish is done.**
+
+**Changes this session:**
+
+- **Repo set to public:** https://github.com/badbooger/Enterprise-D-lighting-effects is now live and public (was private since Session 33).
+- **Considered renaming Bridge → Saucer and EngRoom → Star_Drive** for Trek theming. Decided against it — would touch mDNS hostnames, NVS namespaces, variable names, and `boardInd` labels across all four sketches, forcing a reflash of every unit. Not worth the churn for a cosmetic change. Names stay as-is.
+- **WarpCore repo created and published:** https://github.com/badbooger/Enterprise-D-WarpCore — tagged v1.0. New `WarpCore Repo output/` folder built (same clean-copy pattern as the main repo): `WarpCore_ESP32.ino` (MACs already zeroed), `README.md`, and a new MIT `LICENSE` (code only — no 3D-model/sound notes, those live in the main repo).
+- **Cross-links filled in both READMEs:** root `README.md` WarpCore section now links to the WarpCore repo; `WarpCore_ESP32/README.md` (both the standalone repo's copy and the embedded reference copy in the main repo) now links back to the main repo, replacing the `<!-- add main repo link here -->` placeholder. Pushed to main repo as commit `00bfe85`.
+- **GitHub publish effort is now complete** — both repos live, public, tagged v1.0, cross-linked. `PUBLISH_CHECKLIST.md` fully checked off.
+- **GitHub topics chosen for the main repo:** `esp32`, `esp32-s3`, `arduino`, `star-trek`, `startrek-tng`, `lcars`, `prop-replica`, `esp-now`, `lvgl` — set via the repo page's "About" gear icon (not stored in any repo file).
+- **Repo name typo fixed:** Main repo renamed on GitHub from `Enterprise-D-lightning-effects` → `Enterprise-D-lighting-effects` ("lighting", not "lightning"). Updated local git remote, both READMEs' cross-links, `PUBLISH_CHECKLIST.md`, and historical log entries above to match. GitHub redirects the old URL automatically.
+- **Real MAC addresses found leaking in README example blocks — fixed:** Session 33's MAC-zeroing pass only touched the `.ino` peer-address arrays, missing the matching example code blocks in `Bridge_ESP/README.md`, `Engine_Room_ESP/README.md`, `Data_Pad/README.md`, and both `WarpCore_ESP32/README.md` copies — all showed the real on-model device MACs (DataPad, Bridge, old EngRoom, WarpCore). Replaced with `{0x00, ...}` placeholders to match the sketches. **Lesson: when scrubbing identifying info from sketches before publishing, also grep the READMEs/docs for the same values — they often duplicate examples.** Pushed to both repos.
+- **Reviewed WarpCore repo's "3D model" section:** considered duplicating the `enterprise documentation/Warp_Core/` archive (STLs, PCB files, attribution) into the WarpCore repo too, since Thingiverse no longer hosts the original. Decided against it — both repos are under the same GitHub account, so a second copy there adds no real preservation redundancy, just sync upkeep. Files stay where they are, single source of truth in the main repo (already attributed and CC-licensed). No changes made.
+- **Added `ASSEMBLY.md` build guide:** new top-level file in the main repo with 9 photos from `Enterprise Pictures/assambly photos/` (copied into new `assembly_photos/` folder), covering FFC routing through the stardrive frame and neck connection, nacelle routing, dual speaker mounting (zip-tied to lower framing), and DataPad internal wiring. Linked from the root README's "Repository contents" table. Committed as `a5cebab` and pushed.
+- **Fixed dead `DESIGN_STORY.md` link in published `ASSEMBLY.md`:** `DESIGN_STORY.md` is intentionally kept out of the public repo (its content is reserved for a future standalone LCARS-themed write-up site, not the GitHub repo) — but `ASSEMBLY.md` referenced it anyway, a dead link for anyone reading the published guide. Pointed the reference at `HARDWARE.md` instead (the FFC reasoning is already explained inline in `ASSEMBLY.md`). Committed `e9b4f2e`, pushed.
+- **`DESIGN_STORY.md` updated (working copy only — not published):** added a new "Remaining to Complete the Project" section listing the two physical items left: the old-model board swap, and the WarpCore sensor housing/calibration. Confirmed status of the **new WarpCore base — designed and printed, not yet fitted**; sensor not yet calibrated. Calibration plan: spare Arduino Nano as USB-to-serial passthrough to HLKRadarTool (LD2410C UART pins not yet wired — only OUT connected). Considered and rejected a WiFi-based bridge through the WarpCore's own Nano ESP32 — would need new bridge firmware plus virtual-COM-port software on the PC for a one-off tuning task; the spare-Nano passthrough needs no new code and the hardware is already on hand.
+- **Nacelle warp-flash brightness — resistor swap planned (no board change):** user wants more punch from the nacelle "warp flash" (6× blue 1206 LEDs, 20mA/Vf 2.6–3.1V, wired as 3 parallel pairs each sharing one current-limiting resistor, all on one transistor — documented in `HARDWARE.md` Nacelle PCB Notes). Walked through the resistor math: pushed back on the parallel-pair-per-resistor topology in general (uneven current split between paired LEDs from Vf mismatch), but since the nacelle's diffusers already mask any visible pair imbalance, the only real constraint is keeping the *hotter* LED of each pair under 20mA in a worst-case split. Calculated floor of **220Ω** (worst case ~70/30 split keeps the hot LED at ≤~18.5mA at 8.4V full charge). User has a resistor kit and will bench test multiple standard values, won't go below 220Ω.
+
+**GitHub publish project is now fully wrapped up — repo is public, cross-linked, documented, and handed over to the community for further contributions.**
+
+**Pending:**
+- Old model boards locked up — OTA not reachable. Must open model to reflash. Plan: open model, swap to new boards (correct 270kΩ ADC resistors), flash `Bridge_ESP_Model` via USB.
+- WarpCore sensor housing/calibration — fit the new (already printed) base, wire LD2410C UART to a spare Nano, calibrate via HLKRadarTool.
+- Nacelle warp-flash resistor bench testing — user to try standard values ≥220Ω and report back which looks best.
+
+---
+
+**Session 33 complete (2026-06-05). Repo output folder created and pushed to GitHub.**
+
+**Changes this session:**
+
+- **`Repo output/` created:** Clean copy of all repo files — sketches, docs, PCB files, 3D files. Kept separate from working `enterprise/` folder. No changes to originals.
+- **MAC addresses zeroed in repo copies:** `Bridge_ESP.ino`, `Engine_Room_ESP.ino`, `Data_Pad.ino`, `WarpCore_ESP32.ino` — all peer MAC arrays set to `{0x00, ...}` with comment pointing to `MAC_address_retriver`. NVS clear sketches already had placeholder creds.
+- **Dev/test folders excluded from repo:** `Bridge_Sound_Test/`, `DataPad_DFPlayer_Test/`, `Display examples/`, `WarpCore_PinTest/`, `WarpCore/` (old sketch), `Data_Pad_Hero/`, `notes/`, `Bridge_ESP_Model/`, `PUBLISH_CHECKLIST.md`, `backup_docs.sh`, `ISSUES_LIST.txt`, `Enterprise Pictures/`.
+- **EasyEDA libraries excluded:** `enterprise documentation/PCB Design/libraries/` removed from repo copy — Gerber zips and BOM/CPL xlsx files are sufficient for JLCPCB.
+- **`Data_Pad/filelist.txt` removed** from repo copy (dev artifact).
+- **git init + initial commit:** 118 files, commit `822777e`. Remote set to `https://github.com/badbooger/Enterprise-D-lighting-effects.git`.
+
+**Pending:**
+- WarpCore repo — create on GitHub, link from main README and WarpCore README.
+- Old model boards locked up — OTA not reachable. Must open model to reflash. Plan: open model, swap to new boards (correct 270kΩ ADC resistors), flash `Bridge_ESP_Model` via USB.
+
+**Done:**
+- Hero photo shoot — complete. Photos taken before old boards locked up.
+- Repo live: https://github.com/badbooger/Enterprise-D-lighting-effects — tagged v1.0.
 
 ---
 
@@ -40,8 +255,8 @@ All three sketches live in this folder. Read this before making changes.
 **Changes this session:**
 
 - **Bench DataPad SD card:** Swapped to a pre-formatted card (previous Linux card couldn't be reformatted cleanly). Ran `copy_to_datapad_player.bat` to E: — all 44 sound files copied. Confirmed working.
-- **Bench DataPad setup complete:** Model DataPad (`<redacted>`) stays with model. Bench DataPad (`<redacted>`) used for development going forward.
-- **`Bridge_ESP_Model/` created:** Copy of `Bridge_ESP.ino` with model DataPad MAC (`<redacted>`) as `broadcastAddress2`. Use this sketch to flash the model Bridge. Main `Bridge_ESP/Bridge_ESP.ino` retains bench DataPad MAC (`<redacted>`) for bench work.
+- **Bench DataPad setup complete:** Model DataPad (`20:6e:f1:a9:a1:14`) stays with model. Bench DataPad (`20:6e:f1:a6:f3:4c`) used for development going forward.
+- **`Bridge_ESP_Model/` created:** Copy of `Bridge_ESP.ino` with model DataPad MAC (`20:6e:f1:a9:a1:14`) as `broadcastAddress2`. Use this sketch to flash the model Bridge. Main `Bridge_ESP/Bridge_ESP.ino` retains bench DataPad MAC (`20:6e:f1:a6:f3:4c`) for bench work.
 
 **Pending:**
 - Flash `Bridge_ESP_Model` to model Bridge via OTA (`Bridge.local`) — batteries were low this session, may resolve on their own after charging.
@@ -69,7 +284,7 @@ All three sketches live in this folder. Read this before making changes.
 **Changes this session:**
 
 - **Doc updates:** `Engine_Room_ESP/README.md` — GPIO table rewritten for new board layout, description updated (battle bridge removed, 9 groups), nav lights corrected to GPIO 5. `HARDWARE.md` — LED groups table updated (9 LED pins, 3 window groups), nav GPIO corrected to 5 in two places, EngRoom PCB revision note converted from pending to confirmed-done with full GPIO detail, "LED effects not yet coded" line removed.
-- **`Data_Pad_Hero/` created:** Full copy of `Data_Pad/` for hero photo shoot with old installed boards. MACs set to: EngRoom `<redacted>` (old board), Bridge `<redacted>` (model install). Main `Data_Pad/` sketch retains new MACs. Flash `Data_Pad_Hero` to DataPad for photos, then switch back to `Data_Pad` when new boards go in.
+- **`Data_Pad_Hero/` created:** Full copy of `Data_Pad/` for hero photo shoot with old installed boards. MACs set to: EngRoom `3c:dc:75:ae:cd:b8` (old board), Bridge `e0:72:a1:d7:37:14` (model install). Main `Data_Pad/` sketch retains new MACs. Flash `Data_Pad_Hero` to DataPad for photos, then switch back to `Data_Pad` when new boards go in.
 
 **Pending:**
 
@@ -79,7 +294,7 @@ All three sketches live in this folder. Read this before making changes.
 
 **Changes this session:**
 
-- **EngRoom MAC updated:** `<redacted>` → `<redacted>` (new installed board). Updated in `Engine_Room_ESP.ino`, `Bridge_ESP.ino` (peer address), `Data_Pad.ino` (peer address), `PROJECT_REFERENCE.md`, `GPIO outputs EngRoom.txt`, `CLAUDE.md`.
+- **EngRoom MAC updated:** `3c:dc:75:ae:cd:b8` → `3c:dc:75:ae:da:fc` (new installed board). Updated in `Engine_Room_ESP.ino`, `Bridge_ESP.ino` (peer address), `Data_Pad.ino` (peer address), `PROJECT_REFERENCE.md`, `GPIO outputs EngRoom.txt`, `CLAUDE.md`.
 - **EngRoom GPIO reassignment (`Engine_Room_ESP.ino`):** New board hardware has nacelles on GPIO 8/9 and neck windows consolidated. `PIN_NAC_R` 2→9, `PIN_NAC_L` 3→8. `WIN_PINS` collapsed from 5 to 3 entries: `{20, 7, 21}` (neck all, eng top, eng bot) — GPIO 20 now drives back-of-neck + both battle bridges wired together. `IDX_BB_RIGHT`/`IDX_BB_LEFT` removed; `IDX_NECK=0`, `IDX_ENG_TOP=1`, `IDX_ENG_BOT=2`. `STARTUP_SEQ` step 0 updated from 3-entry neck walk to single `IDX_NECK`. `ALL_PINS` reduced from 11 to 9 entries (GPIO 2 and 3 removed). Externally-used IDX values (5–10, 20) unchanged — no DataPad changes required.
 - **EngRoom battery monitor (`Engine_Room_ESP.ino`):** `PIN_BAT_ADC = 2`, `LED_BAT_LEVEL = 31` added. `readBatteryVolts()` using `analogReadMilliVolts() × 3.70 / 1000` (same 270kΩ+100kΩ divider as Bridge). `analogSetPinAttenuation(PIN_BAT_ADC, ADC_11db)` in setup. Battery mV sent to DataPad every 30s alongside status ping.
 - **DataPad alert fix — EngRoom battery now triggers alerts (`Data_Pad.ino`):** `LED_BAT_LEVEL` from EngRoom (`boardInd=2`) previously updated display only. Same yellow/red threshold logic (BAT_WARN_MV=7400, BAT_CRIT_MV=7000) added to the EngRoom receive path. `batWarnFired`/`batCritFired` flags shared — either board going low fires the alert, no double-trigger.
@@ -98,7 +313,7 @@ All three sketches live in this folder. Read this before making changes.
 - **DataPad battery display (`Data_Pad.ino`, `ui_Screen2.c`):** Two labels in Screen2 header zone — "BRIDGE xx%" and "ENGROOM --%". Percentage formula: (V − 6.0) / 2.4 × 100, clamped 0–100%. Colour: green ≥50%, amber 20–49%, red <20%. EngRoom label stays at "--%" until EngRoom sends LED_BAT_LEVEL.
 - **Yellow alert (`ui_YellowAlert.c/h`, `yellow_alert_img.h`):** Fires at ≤7.4V (7400mV). Full-screen image overlay (`yellow alert.png` → 400×249 RGB565 header, displayed at 2× zoom). Plays sound file 28, repeats every 16s. Auto-dismisses after 60s; tap anywhere to dismiss early. One-shot per session (batWarnFired flag, resets on reboot).
 - **Red alert threshold:** Fires at ≤7.0V (7000mV) via existing `RedAlertStart()`. batCritFired flag prevents re-trigger.
-- **Bridge bench MAC:** `<redacted>` — new bench ESP32-S3 module. DataPad `broadcastAddress2` swapped to bench MAC for testing. Swap back to `<redacted>` (model install) before final deployment.
+- **Bridge bench MAC:** `80:f1:b2:cc:46:5c` — new bench ESP32-S3 module. DataPad `broadcastAddress2` swapped to bench MAC for testing. Swap back to `e0:72:a1:d7:37:14` (model install) before final deployment.
 - **Battery alert thresholds confirmed on bench (2026-05-28):** Power supply used to test trigger voltages with bench 470kΩ+200kΩ divider. Yellow alert (BAT_WARN_MV=7400) fired at 6.72–6.75V supply — matches calculated 6.70V within resistor and ADC tolerance. Red alert (BAT_CRIT_MV=7000) also confirmed. Up to 30s lag before alert fires (Bridge sends reading every 30s). Flag reset logic confirmed working — voltage raised back above threshold resets flags, alerts re-trigger correctly on next drop below threshold.
 
 **Pending:**
@@ -131,7 +346,7 @@ All three sketches live in this folder. Read this before making changes.
 
 - **`amazon parts.txt` created:** Full parts list with Amazon links for all components used in the build. URLs stripped of tracking parameters (clean `dp/ASIN` links only). Notes added to the 2×3×4 square LEDs (red and white) and 1.25mm JST connectors (2-pin and 4-pin) flagging them as good spares — LED leads and connectors can break during assembly. Sound board entries clarified: saucer DY-SV17F is board-mounted with 4MB onboard flash; DataPad DY-SV17F is a different form factor using SD card storage (same controller chip).
 - **README files written:** Root `README.md` created (project showcase — what it does, unit table, getting started, OTA procedure, repo contents, attribution). `Bridge_ESP/README.md`, `Engine_Room_ESP/README.md`, and `Data_Pad/README.md` all rewritten — previous versions were outdated (wrong struct, wrong EngRoom MAC, EngRoom incorrectly stated LED effects not built). Each sketch README covers: what it does, Arduino IDE board settings, first flash + OTA, MACs to update, GPIO assignments, key effects, NVS settings. Assembly notes added: Bridge PCB has ESP32-S3 module placeable by JLCPCB if in stock, PCB has its own USB-C for flashing, dev board route documented as fallback. EngRoom Xiao ESP32-C3 is not a JLCPCB-placeable part — must be hand-soldered after PCB arrives, uses its own onboard USB-C for flashing.
-- **EngRoom MAC corrected:** `<redacted>` (old benchtop test ESP) replaced with `<redacted>` (installed unit) in `PROJECT_REFERENCE.md`. All READMEs were written with the correct MAC from the start.
+- **EngRoom MAC corrected:** `90:70:69:07:0B:88` (old benchtop test ESP) replaced with `3c:dc:75:ae:cd:b8` (installed unit) in `PROJECT_REFERENCE.md`. All READMEs were written with the correct MAC from the start.
 - **WarpCore README written:** `WarpCore_ESP32/README.md` created for the separate WarpCore repo. Covers: 3D model attribution (ElmoC CC BY-NC-ND 3.0, original listing gone), hardware list, pin assignments (with the D2–D6 vs raw GPIO warning), Arduino IDE setup, first flash, MACs to update, standalone vs ESP-NOW integrated modes, chase effect, presence sensor, NVS settings. Main repo README updated to reference the WarpCore repo.
 - **LICENSE added:** MIT license, copyright Daniel 2026. Covers all code and PCB designs. Notes at bottom clarify WarpCore 3D model (CC BY-NC-ND 3.0, ElmoC) and excluded sound files. CLAUDE.md added to .gitignore — dev tool briefing, not user-facing. README license block updated to link to LICENSE file.
 - **Split connector reference rewritten (HARDWARE.md):** Old section-centric table replaced with connector-centric table — 13 split connectors, one row each, showing both sections, wire colours for each pin group (RB/RBlu/YB/YG/YW), and assembly notes. 20E corrected (section 10 = pins 3,4, was wrong) and flagged as verify-on-assembly candidate for backwards LED connection. Hand notes folder added to .gitignore. Repo hold decision: publishing after new boards are fitted and battery monitor firmware is written and tested — repo goes up complete rather than with known pending changes.
@@ -885,8 +1100,9 @@ During reassembly for testing, some LED panels lit up in the wrong group — the
 15. **Bridge PCB revision** — shift mounting holes to opposite side (clear power switch); optionally correct mirrored pin label assignments.
 17. **Home Assistant / Alexa integration** *(long-term goal, low priority)* — remote voice/automation control for basic on/off and possibly effect triggers. Current WiFi setup (OTA via Save WiFi, ESP-NOW for normal operation) stays unchanged. Integration would require Bridge to connect to the home network when available — keeping existing WiFi flow for OTA but adding a persistent connection mode for smart home. Bridge already has an HTTP `/led` endpoint which is a natural integration point. Alexa could use a custom skill or Emulated Hue; Home Assistant via MQTT or HTTP. SoftAP mode (#12) is not compatible with this since it isolates from the home network — would need a separate "smart home mode" where Bridge connects to home WiFi and stays connected. Consider this when planning any further WiFi architecture changes.
 ~~16.~~ ~~**Red alert screen**~~ — **DONE 2026-05-24.** `ui_RedAlert.c/.h` — full-screen black background, 247×204 image converted to RGB565 C array (`red_alert_img.h`, 100KB), displayed at 2× zoom centred on 800×480. `tng_red_alert1` (file 28) plays on trigger and repeats every 16s. Auto-dismisses after 60s or on any tap. Triggered by RED ALERT button on Screen 1 or by radar sensor when model is already on (`redAlertSensorEnabled`). `LV_USE_PNG` left at 0 — `LV_IMG_CF_TRUE_COLOR` with pre-converted pixel data used instead.
-18. ~~**WarpCore MAC registration**~~ — **DONE 2026-05-24.** MAC: `<redacted>`. Registered in DataPad as `broadcastAddressWarpCore[]`, peer added in setup.
+18. ~~**WarpCore MAC registration**~~ — **DONE 2026-05-24.** MAC: `20:6e:f1:31:da:54`. Registered in DataPad as `broadcastAddressWarpCore[]`, peer added in setup.
 19. **WarpCore LD2410C wiring** — IN PROGRESS 2026-05-24. OUT pin wired to D7 on Arduino Nano ESP32. Power: 3.3V boost to 5V (same boost converter module as DataPad DY1703A). Firmware handles rising-edge detection with 3s debounce — sends `LED_RADAR_TRIG` to DataPad when presence detected. DataPad powers up model if off; fires red alert if model already on and `redAlertSensorEnabled`. UART not yet wired — sensor housing build will run UART wires for gate/sensitivity config via HLKRadarTool.
+    - **Calibration wiring plan (2026-06-09):** A dedicated calibration cable with JST connector will be made for the spare 5V Arduino Nano passthrough. LD2410C UART pins will be brought out to a JST connector on the WarpCore — disconnect for normal use, plug in the Nano cable for calibration. The LD2410C is 3.3V logic: Nano TX → LD2410C RX needs a voltage divider (1kΩ + 2kΩ to GND) built permanently into the calibration cable. LD2410C TX → Nano RX is straight through (3.3V into 5V Nano is fine). Use HLKRadarTool at 256000 baud on the Nano's COM port to configure detection gates and sensitivity.
 ~~20.~~ ~~**Button layout pass**~~ — **DONE session 19 (2026-05-24).** All Screen 1 functional buttons repositioned to reference SLS coordinates. Deflector and Impulse moved. Impulse color changed from dark red to nav lights purple. Deflector label corrected to "DEFLECTOR".
 
 ---
