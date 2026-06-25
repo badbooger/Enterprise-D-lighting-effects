@@ -411,7 +411,7 @@ void ui_Screen3_screen_init(void)
     lv_obj_set_y(ui_LabelSaveHint, 48);
     lv_obj_set_align(ui_LabelSaveHint, LV_ALIGN_CENTER);
     lv_label_set_text(ui_LabelSaveHint, "");
-    lv_obj_set_style_text_font(ui_LabelSaveHint, &lv_font_montserrat_10, LV_PART_MAIN | LV_STATE_DEFAULT);
+    lv_obj_set_style_text_font(ui_LabelSaveHint, &lv_font_montserrat_14, LV_PART_MAIN | LV_STATE_DEFAULT);
     lv_obj_set_style_text_align(ui_LabelSaveHint, LV_TEXT_ALIGN_CENTER, LV_PART_MAIN | LV_STATE_DEFAULT);
 
     lv_obj_add_event_cb(ui_TextArea1, ui_event_TextArea1, LV_EVENT_ALL, NULL);

@@ -1,6 +1,6 @@
 # USS Enterprise-D Warp Core Controller
 
-ESP32-based lighting controller for a 3D-printed TNG warp core prop. Runs a 10-LED chase effect with a smooth ambient glow, speed-controlled by a potentiometer. Optionally integrates with the [Enterprise-D Prop Controller](https://github.com/badbooger/Enterprise-D-lighting-effects) via ESP-NOW — the DataPad can control speed and on/off remotely, and the LD2410C presence sensor triggers the main model to power up when someone approaches.
+ESP32-based lighting controller for a 3D-printed TNG warp core prop. Runs a 10-LED chase effect with a smooth ambient glow, speed-controlled by a potentiometer. Optionally integrates with the [Enterprise-D Prop Controller](<!-- add main repo link here -->) via ESP-NOW — the DataPad can control speed and on/off remotely, and the LD2410C presence sensor triggers the main model to power up when someone approaches.
 
 Runs fully standalone with no other hardware required.
 
@@ -73,6 +73,8 @@ After the first USB flash, subsequent updates can be done OTA once WiFi is conne
 
 **OTA password:** `admin` — entered in Arduino IDE at upload time.
 
+> **Warning — board settings reset on sketch reload:** Arduino IDE resets board settings to defaults whenever a sketch is opened or the `.ino` file is replaced. Always verify the settings in the table above before flashing. If the wrong settings are used, the board will not boot and will require USB access to recover.
+
 ---
 
 ## MAC addresses to update
@@ -80,9 +82,9 @@ After the first USB flash, subsequent updates can be done OTA once WiFi is conne
 If integrating with the Enterprise-D system, open `WarpCore_ESP32.ino` and update the peer MAC arrays to match your hardware:
 
 ```cpp
-uint8_t dataPadAddress[] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00};  // DataPad
-uint8_t bridgeAddress[]  = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00};  // Bridge
-uint8_t engRoomAddress[] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00};  // EngRoom
+uint8_t dataPadAddress[] = {0x20, 0x6e, 0xf1, 0xa9, 0xa1, 0x14};  // DataPad
+uint8_t bridgeAddress[]  = {0xe0, 0x72, 0xa1, 0xd7, 0x37, 0x14};  // Bridge
+uint8_t engRoomAddress[] = {0x3c, 0xdc, 0x75, 0xae, 0xcd, 0xb8};  // EngRoom
 ```
 
 Run `MAC_address_retriver/` (from the main repo) on each board to read its MAC.

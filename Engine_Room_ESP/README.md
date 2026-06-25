@@ -32,6 +32,8 @@ After the first USB flash, subsequent updates can be done OTA — see the root R
 
 **OTA password:** `admin` — entered in Arduino IDE at upload time.
 
+> **Warning — board settings reset on sketch reload:** Arduino IDE resets board settings to defaults whenever a sketch is opened or the `.ino` file is replaced. Always verify the settings in the table above before flashing. If the wrong settings are used, the board will not boot and will require USB access to recover — the EngRoom board is inside the stardrive section and requires disassembly to reach.
+
 ---
 
 ## MAC addresses to update
@@ -39,8 +41,8 @@ After the first USB flash, subsequent updates can be done OTA — see the root R
 Open `Engine_Room_ESP.ino` and find the peer MAC arrays near the top of the file:
 
 ```cpp
-uint8_t broadcastAddress1[] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };  // DataPad
-uint8_t broadcastAddress2[] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };  // Bridge
+uint8_t broadcastAddress1[] = { 0x20, 0x6e, 0xf1, 0xa9, 0xa1, 0x14 };  // DataPad
+uint8_t broadcastAddress2[] = { 0xe0, 0x72, 0xa1, 0xd7, 0x37, 0x14 };  // Bridge
 ```
 
 Replace with the actual MACs from your hardware (run `MAC_address_retriver/` on each board).

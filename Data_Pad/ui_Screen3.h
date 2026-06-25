@@ -48,6 +48,7 @@ extern void ui_event_Label25(lv_event_t * e);
 extern lv_obj_t * ui_Label25;
 extern lv_obj_t * ui_WarpCoreStsBtn;
 extern lv_obj_t * ui_LabelWCIP;
+extern lv_obj_t * ui_LabelSaveHint;
 // CUSTOM VARIABLES
 
 #ifdef __cplusplus

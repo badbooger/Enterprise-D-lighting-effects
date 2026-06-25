@@ -6,6 +6,26 @@ All three sketches live in this folder. Read this before making changes.
 
 ## Next Session — Action Required
 
+**Session 45 (2026-06-25). Website live, Save WiFi hint fix, board settings warning, 2.8" audio fix.**
+
+**Changes this session:**
+
+- **Website deployed:** Live at `enterprise-d-refit.com` and `www.enterprise-d-refit.com`. Hosted on Cloudflare Pages (static upload). DNS moved from GoDaddy to Cloudflare (nameservers changed — domain stays at GoDaddy). `hero.jpg` resized from 8160×3768/4.2MB to 1920×887/242KB. Google Fonts import replaced with local `antonio-regular.woff2` in `lcars.css`. To update site: Cloudflare dashboard → Workers & Pages → long-dawn-d294 → Deployments → Upload assets → drag `site/` folder.
+- **Save WiFi hint fix — `Data_Pad` and `Data_Pad_Hero`:** `ui_LabelSaveHint` was declared in `ui_Screen3.c` but missing from `ui_Screen3.h` — added `extern lv_obj_t * ui_LabelSaveHint` to both headers. Font changed from `lv_font_montserrat_10` to `lv_font_montserrat_14` for readability. `Data_Pad.ino` was copied from `Data_Pad_Hero.ino` and MACs/mDNS updated — this resolved a persistent behaviour difference between the two sketches that couldn't be traced to any code difference.
+- **Board settings warning:** Added warning to all six sketch READMEs (`Data_Pad`, `Data_Pad_Hero`, `Bridge_ESP`, `Bridge_ESP_Model`, `Engine_Room_ESP`, `WarpCore_ESP32`) — Arduino IDE resets board settings to defaults when a sketch is opened or the `.ino` is replaced, which causes a bad flash requiring USB recovery (and disassembly for installed boards).
+- **DEVNOTES updated:** GPIO 9 bodge wire removed from pending — fixed in PCB files. Website deploy item resolved.
+- **Battery alert repeated-trigger fix — `Data_Pad` and `Data_Pad_Hero`:** `batWarnFired`/`batCritFired` were shared between Bridge and EngRoom. EngRoom's good battery reading was resetting the shared flag, allowing Bridge's low/miscalibrated reading to re-trigger the alarm every 30 seconds. Fixed by splitting into per-unit flags: `bridgeBatWarnFired`, `bridgeBatCritFired`, `engRoomBatWarnFired`, `engRoomBatCritFired`. Each unit's flag only resets when that unit's own reading improves. Also added `> 0` guard to EngRoom battery handling (was already on Bridge). Confirmed working on bench DataPad — Hero DataPad battery died before testing, flash when charged.
+- **2.8" audio fix — `Data_Pad_28/Audio_PCM5101.cpp`:** Local PCM5101 audio never worked — first time tested this session. Root cause: debug scaffolding left in `Play_Music()` that called `Music_pause()` / `Music_resume()` / `Music_pause()` immediately after `connecttoFS`, leaving audio paused. Also `Audio_Loop()` was replaying a test file (`A.mp3`) whenever audio stopped. Both removed. Audio now working on both sound buttons. Note: `File_Search()` always prints "file not found" in serial monitor due to ESP32 core returning full path from `file.name()` — harmless, no effect on playback.
+- **Repo updated:** `Data_Pad.ino`, `ui_Screen3.c`, `ui_Screen3.h`, `README.md` (Data_Pad), all sketch READMEs, `DEVNOTES.md` copied to `Repo output/`. MACs zeroed in repo `Data_Pad.ino`.
+
+**Pending (carried forward):**
+- Reflash `Data_Pad_Hero` with battery alert fix (battery died before flashing — bench DataPad confirmed working).
+- Reflash: `Bridge_ESP_Model` (new EngRoom MAC), `Engine_Room_ESP` (GPIO 3 nacelle pin — fixed in PCB files, no bodge wire needed).
+- Bridge board swap still pending — old boards in model, new boards on bench.
+- Website live at enterprise-d-refit.com (Cloudflare Pages, 2026-06-25). No further deploy action needed.
+
+---
+
 **Session 44 (2026-06-24). Website rewrite, Save WiFi hint, portable web server.**
 
 **Changes this session:**
@@ -61,10 +81,9 @@ How it works:
 Requires changes to all four sketches (Bridge, EngRoom, DataPad, WarpCore) + the utility. Struct does not change — reuses existing fields.
 
 **Pending (carried forward):**
-- Reflash: `Data_Pad` + `Data_Pad_Hero` (Save WiFi hint label), `Bridge_ESP_Model` (new EngRoom MAC), `Engine_Room_ESP` (GPIO 3 nacelle pin — after bodge wire done).
-- GPIO 9 bodge wire on EngRoom PCB: mask GPIO 9 trace, jump to GPIO 3 for right nacelle.
+- Reflash: `Data_Pad` + `Data_Pad_Hero` (Save WiFi hint label), `Bridge_ESP_Model` (new EngRoom MAC), `Engine_Room_ESP` (GPIO 3 nacelle pin — fixed in PCB files, no bodge wire needed).
 - Bridge board swap still pending — old boards in model, new boards on bench.
-- Website deploy: pick domain, set up nginx on Unraid with Cloudflare tunnel, or use GoDaddy hosting.
+- Website live at enterprise-d-refit.com (Cloudflare Pages, 2026-06-25). No further deploy action needed.
 
 ---
 

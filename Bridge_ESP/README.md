@@ -33,6 +33,8 @@ After the first USB flash, subsequent updates can be done OTA — see the root R
 
 **OTA password:** `admin` — entered in Arduino IDE at upload time. There is no `ArduinoOTA.setPassword()` call in the sketch; the library accepts whatever the IDE sends.
 
+> **Warning — board settings reset on sketch reload:** Arduino IDE resets board settings to defaults whenever a sketch is opened or the `.ino` file is replaced. Always verify the settings in the table above before flashing. If the wrong settings are used, the board will not boot and will require USB access to recover — the Bridge board is inside the saucer section and requires disassembly to reach.
+
 ---
 
 ## MAC addresses to update
@@ -40,8 +42,8 @@ After the first USB flash, subsequent updates can be done OTA — see the root R
 Open `Bridge_ESP.ino` and find the peer MAC arrays near the top of the file. Replace with the actual MACs from your hardware (run `MAC_address_retriver/` on each board):
 
 ```cpp
-uint8_t broadcastAddress1[] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };  // EngRoom
-uint8_t broadcastAddress2[] = { 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 };  // DataPad
+uint8_t broadcastAddress1[] = { 0x3c, 0xdc, 0x75, 0xae, 0xcd, 0xb8 };  // EngRoom
+uint8_t broadcastAddress2[] = { 0x20, 0x6e, 0xf1, 0xa9, 0xa1, 0x14 };  // DataPad
 ```
 
 ---
