@@ -6,7 +6,29 @@ All three sketches live in this folder. Read this before making changes.
 
 ## Next Session — Action Required
 
+**Session 46 (2026-06-28). board_utility mDNS + serial WiFi credentials.**
+
+**Changes this session:**
+
+- **`board_utility/board_utility.ino` — mDNS added:** `ESPmDNS` added; board now advertises as `board-utility.local` (HTTP service registered). Accessible via `http://board-utility.local/` on iOS, Mac, Windows. Android does not support `.local` mDNS natively — use IP from serial instead.
+- **`board_utility/board_utility.ino` — serial WiFi credentials:** Serial now prints AP SSID, AP password, full IP URL, and mDNS URL on boot — makes connecting easier when captive portal is missed (common on Android).
+- **Repo updated:** `board_utility.ino` copied to `Repo output/` and pushed.
+
+**Pending (carried forward):**
+- Bridge board swap still pending — old boards in model, new boards on bench.
+- Website live at enterprise-d-refit.com (Cloudflare Pages, 2026-06-25). No further deploy action needed.
+- Website rewrite for general audience — less spec sheet, more build story (feedback from non-technical visitor, session 45).
+- `Data_Pad_28` sketch cleanup — remove all leftover UI and code from when it was developed as the main DataPad controller. Now a pocket remote only; strip back to what's actually used.
+- `Data_Pad_28` future — second screen for sound control. Random-by-category is probably the best fit. Also: ESP-NOW button to trigger easter eggs on the 7" DataPad remotely.
+
+---
+
 **Session 45 (2026-06-25). Website live, Save WiFi hint fix, board settings warning, 2.8" audio fix.**
+
+**Website — next session feedback (from non-technical visitor):**
+- Landing page doesn't grab attention or explain what the project is for a general audience — rewrite to be fun and accessible, not technical
+- Add a "story" page: funny/human write-up of the build process with photos that anyone can follow, not just makers
+- General direction: less spec sheet, more "look what this guy built and here's the ridiculous journey to get there"
 
 **Changes this session:**
 
@@ -17,12 +39,6 @@ All three sketches live in this folder. Read this before making changes.
 - **Battery alert repeated-trigger fix — `Data_Pad` and `Data_Pad_Hero`:** `batWarnFired`/`batCritFired` were shared between Bridge and EngRoom. EngRoom's good battery reading was resetting the shared flag, allowing Bridge's low/miscalibrated reading to re-trigger the alarm every 30 seconds. Fixed by splitting into per-unit flags: `bridgeBatWarnFired`, `bridgeBatCritFired`, `engRoomBatWarnFired`, `engRoomBatCritFired`. Each unit's flag only resets when that unit's own reading improves. Also added `> 0` guard to EngRoom battery handling (was already on Bridge). Confirmed working on bench DataPad — Hero DataPad battery died before testing, flash when charged.
 - **2.8" audio fix — `Data_Pad_28/Audio_PCM5101.cpp`:** Local PCM5101 audio never worked — first time tested this session. Root cause: debug scaffolding left in `Play_Music()` that called `Music_pause()` / `Music_resume()` / `Music_pause()` immediately after `connecttoFS`, leaving audio paused. Also `Audio_Loop()` was replaying a test file (`A.mp3`) whenever audio stopped. Both removed. Audio now working on both sound buttons. Note: `File_Search()` always prints "file not found" in serial monitor due to ESP32 core returning full path from `file.name()` — harmless, no effect on playback.
 - **Repo updated:** `Data_Pad.ino`, `ui_Screen3.c`, `ui_Screen3.h`, `README.md` (Data_Pad), all sketch READMEs, `DEVNOTES.md` copied to `Repo output/`. MACs zeroed in repo `Data_Pad.ino`.
-
-**Pending (carried forward):**
-- Reflash `Data_Pad_Hero` with battery alert fix (battery died before flashing — bench DataPad confirmed working).
-- Reflash: `Bridge_ESP_Model` (new EngRoom MAC), `Engine_Room_ESP` (GPIO 3 nacelle pin — fixed in PCB files, no bodge wire needed).
-- Bridge board swap still pending — old boards in model, new boards on bench.
-- Website live at enterprise-d-refit.com (Cloudflare Pages, 2026-06-25). No further deploy action needed.
 
 ---
 
