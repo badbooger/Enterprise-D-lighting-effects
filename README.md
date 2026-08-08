@@ -32,6 +32,8 @@ All LEDs are white. All effects are brightness, PWM duty cycle, and timing patte
 
 Six custom PCB designs (seven boards total), all designed in EasyEDA. Gerbers, BOMs, and pick-and-place files are in `enterprise documentation/PCB Design/`.
 
+**Single power source option:** The EngRoom and Neck PCBs use wider 0.8–1mm VCC/GND traces than the rest of the boards, sized to carry the full model's power if you'd rather not run separate battery boxes. Route: drill a hole through the stand mount to run wires hidden from the stand into EngRoom's 2-pin JST connector → through the EngRoom PCB → out the FFC to the Neck PCB's 2-pin connector, reusing the same connector that would normally be power-in from a local neck battery → out through the neck to the spare 2-pin JST connector on Bridge PCB3, which is unused in the normal build → power wiring from there is the same as the original build. This wires the two sections together permanently — the model can no longer be physically separated into saucer and stardrive once this is done. The 2-pin connectors that come with the kit's battery boxes can be reused to make the jumper needed to run power from the Neck PCB to the Bridge PCB3 — or if you don't want to cut the wiring off the battery boxes, the connectors are standard JST and can be ordered from Amazon or a parts supplier of your choice.
+
 See `HARDWARE.md` for pinouts, resistor values, power budget, battery configuration, and connector maps.
 
 Parts list with Amazon links: `amazon parts.txt`.
