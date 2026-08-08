@@ -161,6 +161,8 @@ For a board revision:
 >
 > **GPIO 9 strapping pin fix (2026-06-18):** Right nacelle was originally assigned to GPIO 9, which is the BOOT strapping pin on ESP32-C3. The 1.2kΩ base resistor into the NPN transistor base-emitter junction pulled GPIO 9 LOW at power-on, putting the chip into download mode (boot freeze). Left nacelle on GPIO 8 was unaffected — Xiao board has a stronger external pull-up on GPIO 8. Fix: right nacelle moved to GPIO 3 in firmware and PCB. Hardware workaround on current board: solder mask GPIO 9 trace, jump wire to GPIO 3. Old EngRoom board was not affected — nacelles were on GPIO 2/3, neither is a strapping pin.
 
+> **EngRoom + Neck PCB power trace widening (2026-08-08):** VCC/GND traces widened to 0.8–1mm on both boards (no other changes). Enables an optional single power source build — route power through a hole drilled in the stand mount into EngRoom's 2-pin JST connector, through the EngRoom PCB, out the FFC to the Neck PCB's 2-pin connector (reusing what's normally power-in from a local neck battery), out through the neck to the spare 2-pin JST on Bridge PCB3 (unused in the normal build), then stock wiring from there to Bridge PCB1/PCB2. This is a permanent mod — the saucer and stardrive can no longer be physically separated once wired this way. See `README.md` for the full write-up.
+
 > **Wiring issue resolved — nav/photon connector (2026-05-20):** Nav and photon wires were soldered in reverse order on the neck board connector. Connector re-pinned 2026-05-20 — firmware was already correct, no sketch change needed. Permanent fix applied in PCB revision above.
 
 > **EngRoom lower PCB voltage regulator standoff — fixed in PCB revision 2026-05-21.** Regulator moved to clear the standoff. Decoupling caps moved with it.
