@@ -103,8 +103,9 @@ All LED current-limiting resistors are 0603 package. Values were chosen empirica
 | Original kit | 4.5V (3× AAA) | 820Ω | ~1.6mA |
 | Current build (2S LiPo) | 7.4V nominal / 8.4V full | 1.2kΩ | ~3.5mA / ~4.3mA |
 | 3S upgrade (board revision) | 11.1V nominal / 12.6V full | **2.2kΩ** | ~3.6mA / ~4.3mA |
+| 5V bypass build (PCB 3, planned) | 5V (USB / direct 5V input) | **510Ω** (calculated, not yet built) | ~3.5mA |
 
-The 2.2kΩ value for 3S was calculated to match the current 2S/1.2kΩ operating current almost exactly — same brightness, no PWM compensation needed.
+The 2.2kΩ value for 3S was calculated to match the current 2S/1.2kΩ operating current almost exactly — same brightness, no PWM compensation needed. The 510Ω 5V value follows the same target current (~3.5mA) as the 2S and 3S builds; it hasn't been populated or tested on hardware yet — confirm before ordering.
 
 **Note:** At these current levels (under 8mA in any configuration) the LEDs are lightly loaded relative to their ~20–30mA ratings. Long-term LED damage is not a concern at any of these supply voltages.
 
@@ -162,6 +163,8 @@ For a board revision:
 > **GPIO 9 strapping pin fix (2026-06-18):** Right nacelle was originally assigned to GPIO 9, which is the BOOT strapping pin on ESP32-C3. The 1.2kΩ base resistor into the NPN transistor base-emitter junction pulled GPIO 9 LOW at power-on, putting the chip into download mode (boot freeze). Left nacelle on GPIO 8 was unaffected — Xiao board has a stronger external pull-up on GPIO 8. Fix: right nacelle moved to GPIO 3 in firmware and PCB. Hardware workaround on current board: solder mask GPIO 9 trace, jump wire to GPIO 3. Old EngRoom board was not affected — nacelles were on GPIO 2/3, neither is a strapping pin.
 
 > **EngRoom + Neck PCB power trace widening (2026-08-08):** VCC/GND traces widened to 0.8–1mm on both boards (no other changes). Enables an optional single power source build — route power through a hole drilled in the stand mount into EngRoom's 2-pin JST connector, through the EngRoom PCB, out the FFC to the Neck PCB's 2-pin connector (reusing what's normally power-in from a local neck battery), out through the neck to the spare 2-pin JST on Bridge PCB3 (unused in the normal build), then stock wiring from there to Bridge PCB1/PCB2. This is a permanent mod — the saucer and stardrive can no longer be physically separated once wired this way. See `README.md` for the full write-up.
+>
+> **Planned next step (2026-08-15, not started):** Bridge saucer VCC/GND currently arrive as two separate rails, one per saucer battery pack. Since the single-power-source mod lands all incoming power at one point (PCB3's spare JST), the two saucer battery input rails need to be tied together on PCB1/PCB2 so the single source feeds both. EasyEDA not yet updated; PCB files pending, repo push deferred.
 
 > **Wiring issue resolved — nav/photon connector (2026-05-20):** Nav and photon wires were soldered in reverse order on the neck board connector. Connector re-pinned 2026-05-20 — firmware was already correct, no sketch change needed. Permanent fix applied in PCB revision above.
 
@@ -472,6 +475,8 @@ All three Bridge PCBs revised. Current boards unchanged — firmware update defe
 - **PCB 2 EN pin circuit — fixed 2026-05-28:** Original schematic had the RC circuit reversed (3.3V → cap → EN → resistor → GND), holding EN low during boot. 100nF cap across reset switch also removed (unnecessary). EasyEDA updated to correct circuit: **3.3V → 10kΩ → EN pin → pushbutton → GND.** No capacitors. Confirmed working with new boards.
 - **PCB 3:** Non-UART mode resistors removed from DY-SV17F mode selection array — only UART configuration resistors retained. Simplifies board with no functional change.
 - **All boards:** Group 9 LED pin now correctly split between groups 9 and 1 — was only connected to group 9 on original layout. Battery voltage monitor added on GPIO 2 (ADC1) — voltage divider R1=270kΩ, R2=100kΩ on PCB, tapped from local supply rail close to GPIO 2. Maps 6.0V–8.4V → 1.62V–2.27V on ADC. Use ADC_11db attenuation in firmware.
+
+> **PCB 3 — 0Ω regulator bypass jumper (2026-08-15):** Added a 0Ω 0603 resistor footprint in parallel with the linear regulator that steps the battery supply down to 5V for the DY-SV17F. PCB 3 is the only board with a 5V rail (for the sound module), so this is the only board that needs it. Lets a future 5V-input build skip a respin: depopulate the regulator, populate the 0Ω resistor to feed VCC straight from the 5V input, and swap the LED current-limiting resistors for the 5V-appropriate value (per the LED resistor table above).
 
 ---
 
