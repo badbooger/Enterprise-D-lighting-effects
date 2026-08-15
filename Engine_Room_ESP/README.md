@@ -83,7 +83,9 @@ All LED groups are switched through MMBT2222A NPN transistors. Do not connect LE
 
 **Nacelle warp mode** — triggered by `LED_WARP` command with a speed value 1–10. Three-phase startup: snap to 25% → ramp to 100% over ~1.5s → hold at speed-mapped brightness (80–100%). Speed changes while warp is active skip the ramp. Returns to normal sine on `LED_WARP val=0`.
 
-> **Brighter warp flash (optional hardware change):** The nacelle PCB uses 6× blue 1206 SMD LEDs wired as 3 parallel pairs, each pair sharing one current-limiting resistor. Swapping those resistors to a lower value increases brightness. At 7.4V nominal with Vf ≈ 2.6–3.1V, **240Ω** gives ~8.75mA per LED — noticeably brighter than a typical stock value and well within the 20mA LED rating. In practice, brightness between paired LEDs is indistinguishable. Do not go below 220Ω. Any single LEDs on the board (non-paired, through-hole) need a separate higher value — **470Ω** — to match the same per-LED current.
+> **Brighter warp flash:** The nacelle PCB uses 6× blue 1206 SMD LEDs wired as 3 parallel pairs, each pair sharing one current-limiting resistor. This build uses **240Ω** on those pairs — at 7.4V nominal with Vf ≈ 2.6–3.1V that's ~8.75mA per LED, noticeably brighter than a typical stock value and well within the 20mA LED rating — installed specifically to make the warp-flash effect punchier. In practice, brightness between paired LEDs is indistinguishable. Do not go below 220Ω. The single LEDs on the board (non-paired, through-hole) use a separate higher value, **470Ω**, to match the same per-LED current.
+>
+> The higher current only shows up during the warp effect itself. Normal-running nacelle brightness is capped in firmware well below what these resistors allow — the idle sine pulse stays in the 80–115/255 duty range (see "Nacelle pulse (normal)" below); only warp mode ramps up toward full 255 duty. So the resistor change buys headroom for the flash without making the nacelles run hot/bright all the time.
 
 **Deflector** — 60% steady brightness during normal operation, 100% during warp.
 

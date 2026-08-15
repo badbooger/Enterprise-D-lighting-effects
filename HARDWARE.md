@@ -488,7 +488,7 @@ One board design used ×2 — port and starboard nacelles are identical boards. 
 
 6× blue 1206 SMD LEDs — main nacelle bussard collector glow ("warp flash" effect). Standard SMT assembly. Wired as 3 parallel pairs, each pair sharing a single current-limiting resistor, all 3 pairs switched together by one MMBT2222A transistor. LED specs: 20mA rated, Vf 2.6–3.1V.
 
-**Current-limiting resistors (confirmed 2026-06-09):** Each parallel-pair resistor = **240Ω** (~8.75mA per LED at 7.4V nominal). Because each resistor serves a parallel pair, current won't split perfectly evenly (Vf mismatch), but the nacelle diffusers mask any visible imbalance — the only constraint is keeping the hotter LED under 20mA worst-case, which 240Ω satisfies comfortably.
+**Current-limiting resistors (confirmed 2026-06-09, installed 2026-08-15):** Each parallel-pair resistor = **240Ω** (~8.75mA per LED at 7.4V nominal). Because each resistor serves a parallel pair, current won't split perfectly evenly (Vf mismatch), but the nacelle diffusers mask any visible imbalance — the only constraint is keeping the hotter LED under 20mA worst-case, which 240Ω satisfies comfortably. Chosen over the stock 820Ω-equivalent value purely to give a brighter warp-flash effect; see `Engine_Room_ESP/README.md` for why continuous brightness is still limited in firmware despite the higher available current.
 
 ### Through-hole footprints — not all are LEDs
 
@@ -501,7 +501,7 @@ The 4× through-hole LED footprints (204-10SUGC/S400-A5-L) serve different purpo
 | Forward nacelle LED | Red 3mm LED on ~3" wire leads — runs to mounting location inside nacelle | **470Ω** |
 | Nav lights | Two 3mm LEDs pigtailed in parallel, ~3" wire leads each — driven from nav lights transistor | **1.2kΩ** |
 
-470Ω chosen to match ~8.75mA per LED of the parallel SMD pairs at 7.4V nominal. Nav lights 1.2kΩ unchanged from standard board value.
+470Ω chosen to match ~8.75mA per LED of the parallel SMD pairs at 7.4V nominal, installed 2026-08-15. Nav lights 1.2kΩ unchanged from standard board value.
 
 Original board photos retained for reference wiring layout.
 
