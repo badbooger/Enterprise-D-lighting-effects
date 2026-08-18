@@ -164,6 +164,8 @@ For a board revision:
 
 > **EngRoom + Neck PCB power trace widening (2026-08-08):** VCC/GND traces widened to 0.8–1mm on both boards (no other changes). Enables an optional single power source build — route power through a hole drilled in the stand mount into EngRoom's 2-pin JST connector, through the EngRoom PCB, out the FFC to the Neck PCB's 2-pin connector (reusing what's normally power-in from a local neck battery), out through the neck to the spare 2-pin JST on Bridge PCB3 (unused in the normal build), then stock wiring from there to Bridge PCB1/PCB2. This is a permanent mod — the saucer and stardrive can no longer be physically separated once wired this way. See `README.md` for the full write-up.
 >
+> **EngRoom Photon 2x — new board variant (2026-08-18):** Separate PCB variant (`Engroom Photon 2x.zip`, not a revision of the main EngRoom board) adding a 2-pin connector for a second, aft photon torpedo LED — mirrors a mod builders had already been doing by hand on models with an aft photon LED not in the original kit. Uses GPIO9, the only unassigned pin on the Xiao ESP32-C3, previously avoided due to the boot strapping issue above. Wired **active-low** to sidestep that issue rather than repeat it: LED anode to 3.3V through an on-board 330Ω 0603 series resistor, cathode to GPIO9 — idle/floating state (pin pulled high) puts no current through the LED, so nothing loads the pin down at boot the way the GPIO9 nacelle transistor did. Firmware drives GPIO9 LOW to light the LED. Single LED at ~3.5–4.3mA runs directly off the GPIO, no transistor needed. Firmware not yet updated — `Engine_Room_ESP.ino` still needs `pinMode(9, OUTPUT); digitalWrite(9, HIGH);` set early in `setup()` plus whatever command wiring drives it.
+>
 > **Planned next step (2026-08-15, not started):** Bridge saucer VCC/GND currently arrive as two separate rails, one per saucer battery pack. Since the single-power-source mod lands all incoming power at one point (PCB3's spare JST), the two saucer battery input rails need to be tied together on PCB1/PCB2 so the single source feeds both. EasyEDA not yet updated; PCB files pending, repo push deferred.
 
 > **Wiring issue resolved — nav/photon connector (2026-05-20):** Nav and photon wires were soldered in reverse order on the neck board connector. Connector re-pinned 2026-05-20 — firmware was already correct, no sketch change needed. Permanent fix applied in PCB revision above.
@@ -517,6 +519,7 @@ Located in `enterprise documentation/PCB Design/`:
 | BridgePCB2.zip | BOM_BridgePCB2.xlsx | PickAndPlace_BridgePCB2.xlsx | Saucer PCB 2 (ESP32-S3, regulators, USB-C) |
 | BridgePCB3.zip | BOM_BridgePCB3.xlsx | PickAndPlace_BridgePCB3.xlsx | Saucer PCB 3 (DY-SV17F sound player) |
 | EngRoomPCB.zip | BOM_EngRoomPCB.xlsx | PickAndPlace_EngRoomPCB.xlsx | Engine room PCB (Xiao ESP32-C3) |
+| Engroom Photon 2x.zip | BOM_Engroom Photon 2x.xlsx | PickAndPlace_Engroom Photon 2x.xlsx | Engine room PCB variant — adds 2-pin GPIO9 connector for front + aft photon torpedo LED connections |
 | NeckPCB.zip | BOM_NeckPCB.xlsx | PickAndPlace_NeckPCB.xlsx | Neck PCB |
 | NacellePCB.zip | BOM_NacellePCB.xlsx | PickAndPlace_NacellePCB.xlsx | Nacelle LED controller (used ×2) |
 
