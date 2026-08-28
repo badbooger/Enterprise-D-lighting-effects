@@ -63,3 +63,10 @@ https://www.amazon.com/dp/B0DGX3LSC7
 
 ESP32-S3
 https://www.amazon.com/dp/B0CGYXJB6Y
+
+Inline fuse holder (single power source mod), 5x20mm, 10-pack
+https://www.amazon.com/DIGITEN-5x20mm-Holder-Inline-screw/dp/B00VLBAF84
+Note: only one needed for the mod — good spares to have on hand. Pick a slow-blow fuse rated above the model's combined nominal draw, see HARDWARE.md power budget
+
+Barrel jack (single power source mod)
+Link not chosen yet — size/polarity is the builder's choice based on their external supply
