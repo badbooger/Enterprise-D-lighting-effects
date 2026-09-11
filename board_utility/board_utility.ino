@@ -2,13 +2,15 @@
 #include <esp_wifi.h>
 #include <esp_now.h>
 #include <WebServer.h>
-#include <DNSServer.h>
 #include <ESPmDNS.h>
 #include <ArduinoOTA.h>
 #include <Preferences.h>
 
-const char* AP_SSID = "enterprise";
-const char* AP_PASS = "ncc-1701-d";
+const char* JOIN_SSID = "Enterprise D";
+const char* JOIN_PASS = "ncc1701-d";
+IPAddress   staticIP(192, 168, 4, 50);
+IPAddress   gateway(192, 168, 4, 1);
+IPAddress   subnet(255, 255, 255, 0);
 
 const char* namespaces[] = { "bridge", "engroom", "datapad", "warpcore" };
 const char* labels[]     = { "Bridge", "EngRoom", "DataPad", "WarpCore" };
@@ -35,7 +37,6 @@ typedef struct struct_message {
 uint8_t broadcastAddr[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 esp_now_peer_info_t peerInfo;
 
-DNSServer   dnsServer;
 WebServer   webServer(80);
 String      macAddress;
 String      statusMsg = "";
@@ -221,16 +222,18 @@ void handleCmd() {
   webServer.send(200, "application/json", "{\"ok\":true,\"msg\":\"" + msg + "\"}");
 }
 
-void handleRedirect() {
-  webServer.sendHeader("Location", "http://192.168.4.1/");
-  webServer.send(302, "text/plain", "");
-}
-
 void setup() {
   Serial.begin(115200);
 
-  WiFi.mode(WIFI_AP_STA);
-  WiFi.softAP(AP_SSID, AP_PASS);
+  WiFi.mode(WIFI_STA);
+  WiFi.config(staticIP, gateway, subnet);
+  WiFi.begin(JOIN_SSID, JOIN_PASS);
+  Serial.printf("Joining %s", JOIN_SSID);
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(300);
+    Serial.print(".");
+  }
+  Serial.println();
 
   uint8_t baseMac[6];
   esp_wifi_get_mac(WIFI_IF_STA, baseMac);
@@ -241,12 +244,10 @@ void setup() {
   macAddress = buf;
 
   Serial.printf("MAC Address: %s\n", buf);
-  Serial.printf("AP SSID: %s\n", AP_SSID);
-  Serial.printf("AP Pass: %s\n", AP_PASS);
-  Serial.printf("AP IP:   http://%s/\n", WiFi.softAPIP().toString().c_str());
+  Serial.printf("Joined:  %s (ch=%d)\n", JOIN_SSID, WiFi.channel());
+  Serial.printf("IP:      http://%s/\n", WiFi.localIP().toString().c_str());
   Serial.printf("mDNS:    http://board-utility.local/\n");
 
-  esp_wifi_set_channel(1, WIFI_SECOND_CHAN_NONE);
   if (esp_now_init() == ESP_OK) {
     memcpy(peerInfo.peer_addr, broadcastAddr, 6);
     peerInfo.channel = 0;
@@ -255,18 +256,9 @@ void setup() {
     Serial.println("ESP-NOW ready");
   }
 
-  dnsServer.start(53, "*", WiFi.softAPIP());
-
   webServer.on("/", handleRoot);
   webServer.on("/clear", handleClear);
   webServer.on("/cmd", HTTP_POST, handleCmd);
-  webServer.on("/generate_204", handleRedirect);
-  webServer.on("/hotspot-detect.html", handleRedirect);
-  webServer.on("/connecttest.txt", handleRedirect);
-  webServer.on("/redirect", handleRedirect);
-  webServer.on("/success.txt", handleRedirect);
-  webServer.on("/ncsi.txt", handleRedirect);
-  webServer.onNotFound(handleRedirect);
   webServer.begin();
 
   MDNS.begin("board-utility");
@@ -277,7 +269,6 @@ void setup() {
 }
 
 void loop() {
-  dnsServer.processNextRequest();
   webServer.handleClient();
   ArduinoOTA.handle();
 }
