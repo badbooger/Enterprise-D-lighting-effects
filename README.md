@@ -23,8 +23,9 @@ All LEDs are white. All effects are brightness, PWM duty cycle, and timing patte
 | Bridge | ESP32-S3 | `Bridge_ESP/` | Saucer — 18 LED groups, sound |
 | EngRoom | Xiao ESP32-C3 | `Engine_Room_ESP/` | Stardrive — 10 LED groups |
 | DataPad 7" | Waveshare ESP32-S3 7" | `Data_Pad/` | LCARS touchscreen controller |
-| DataPad 2.8" | Waveshare ESP32-S3 2.8" | `Data_Pad_240x320/` | Smaller PADD variant |
 | WarpCore | Arduino Nano ESP32 | `WarpCore_ESP32/` | Standalone warp core display (see note below) |
+
+There's also a **work-in-progress webpage-control variant** of Bridge and EngRoom — [`Bridge_ESP_Webpage/`](Bridge_ESP_Webpage) and [`Engine_Room_ESP_Webpage/`](Engine_Room_ESP_Webpage). Instead of the DataPad pushing WiFi credentials for OTA, Bridge hosts its own permanent access point with a built-in control webpage — no DataPad or home network required to run or control the model. It hasn't been tested as thoroughly as the sketches above yet; see each folder's README for details and current rough edges.
 
 ---
 
@@ -81,8 +82,9 @@ Normal operation: WiFi off, ESP-NOW on channel 1.
 |------|----------|
 | `Bridge_ESP/` | Saucer ESP32-S3 sketch |
 | `Engine_Room_ESP/` | Stardrive Xiao ESP32-C3 sketch |
+| `Bridge_ESP_Webpage/` | **Work in progress** — Bridge variant with a built-in WiFi control webpage |
+| `Engine_Room_ESP_Webpage/` | **Work in progress** — EngRoom variant to pair with `Bridge_ESP_Webpage`, adds a WiFi fallback/recovery page |
 | `Data_Pad/` | 7" DataPad sketch and LVGL UI files |
-| `Data_Pad_240x320/` | 2.8" DataPad variant |
 | `WarpCore_ESP32/` | WarpCore ESP32 sketch |
 | `Bridge_NVS_Clear/` | Utility — wipes Bridge WiFi credentials from NVS |
 | `EngRoom_NVS_Clear/` | Utility — wipes EngRoom WiFi credentials from NVS |
@@ -92,7 +94,6 @@ Normal operation: WiFi off, ESP-NOW on channel 1.
 | `enterprise documentation/Warp_Core/` | Original Thingiverse WarpCore design archive (see below) |
 | `enterprise documentation/pcbs test prints/` | PCB test-fit prints — print before ordering boards |
 | `HARDWARE.md` | Full hardware reference |
-| `DEVNOTES.md` | Session logs, build history, fix queue, pending work |
 | `SOUND_MAP.md` | Sound file list and trigger map |
 | `amazon parts.txt` | Parts list with Amazon links |
 
