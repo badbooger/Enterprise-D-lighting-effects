@@ -1,0 +1,12 @@
+[Unit]
+Description=Batch provisioning .bin server (HTTPUpdate pull + MAC log)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=pi
+ExecStart=/usr/bin/python3 /home/pi/bench/OTA_Server/bin_server.py
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

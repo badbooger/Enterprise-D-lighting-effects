@@ -25,7 +25,7 @@ All LEDs are white. All effects are brightness, PWM duty cycle, and timing patte
 | DataPad 7" | Waveshare ESP32-S3 7" | `Data_Pad/` | LCARS touchscreen controller |
 | WarpCore | Arduino Nano ESP32 | `WarpCore_ESP32/` | Standalone warp core display (see note below) |
 
-There's also a **work-in-progress webpage-control variant** of Bridge and EngRoom — [`Bridge_ESP_Webpage/`](Bridge_ESP_Webpage) and [`Engine_Room_ESP_Webpage/`](Engine_Room_ESP_Webpage). Instead of the DataPad pushing WiFi credentials for OTA, Bridge hosts its own permanent access point with a built-in control webpage — no DataPad or home network required to run or control the model. It hasn't been tested as thoroughly as the sketches above yet; see each folder's README for details and current rough edges.
+**Separate sub-project: [`Web_Control_Kit/`](Web_Control_Kit)** (work in progress) — a version of the Bridge and EngRoom firmware where Bridge hosts its own WiFi access point with a built-in control webpage, so no DataPad or home network is needed to run the model. It also holds the bench tooling for setting up boards in batches (bootstrap firmware, a Raspberry Pi firmware server with a progress dashboard, and a sound-module auto-loader). The sketches above are the original build and don't depend on anything in it.
 
 ---
 
@@ -82,8 +82,7 @@ Normal operation: WiFi off, ESP-NOW on channel 1.
 |------|----------|
 | `Bridge_ESP/` | Saucer ESP32-S3 sketch |
 | `Engine_Room_ESP/` | Stardrive Xiao ESP32-C3 sketch |
-| `Bridge_ESP_Webpage/` | **Work in progress** — Bridge variant with a built-in WiFi control webpage |
-| `Engine_Room_ESP_Webpage/` | **Work in progress** — EngRoom variant to pair with `Bridge_ESP_Webpage`, adds a WiFi fallback/recovery page |
+| `Web_Control_Kit/` | **Work in progress, separate sub-project** — webpage-controlled Bridge/EngRoom firmware + batch setup tooling (see its README) |
 | `Data_Pad/` | 7" DataPad sketch and LVGL UI files |
 | `WarpCore_ESP32/` | WarpCore ESP32 sketch |
 | `Bridge_NVS_Clear/` | Utility — wipes Bridge WiFi credentials from NVS |

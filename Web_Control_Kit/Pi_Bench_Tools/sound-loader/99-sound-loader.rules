@@ -1,0 +1,2 @@
+# DY-SV17F sound module plugged in over USB (whole-disk vfat, model "uart mp3 player")
+ACTION=="add", SUBSYSTEM=="block", ENV{DEVTYPE}=="disk", ENV{ID_BUS}=="usb", ENV{ID_MODEL}=="uart_mp3_player", TAG+="systemd", ENV{SYSTEMD_WANTS}+="sound-loader@%k.service"

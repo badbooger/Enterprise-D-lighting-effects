@@ -1,6 +1,6 @@
 # Bridge ESP (Webpage variant) — ESP32-S3
 
-> **⚠️ Work in progress.** This is a newer variant of the Bridge firmware that hosts its own WiFi control page — it hasn't been through the same amount of real-world testing as the plain [`Bridge_ESP`](../Bridge_ESP) sketch yet. Expect rough edges. If you just want the proven, minimal firmware (DataPad-driven, no built-in webpage), use `Bridge_ESP` instead.
+> **⚠️ Work in progress.** This is a newer variant of the Bridge firmware that hosts its own WiFi control page — it hasn't been through the same amount of real-world testing as the plain [`Bridge_ESP`](../../Bridge_ESP) sketch yet. Expect rough edges. If you just want the proven, minimal firmware (DataPad-driven, no built-in webpage), use `Bridge_ESP` instead.
 
 Saucer section controller — same core effects as `Bridge_ESP` (window groups, nav lights, impulse engines, sound player, startup/shutdown sequences, ESP-NOW to EngRoom/DataPad), plus:
 

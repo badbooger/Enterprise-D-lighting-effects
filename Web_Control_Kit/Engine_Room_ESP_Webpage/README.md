@@ -1,6 +1,6 @@
 # Engine Room ESP (Webpage variant) — Xiao ESP32-C3
 
-> **⚠️ Work in progress.** This is a newer variant of the EngRoom firmware, meant to pair with [`Bridge_ESP_Webpage`](../Bridge_ESP_Webpage). It hasn't been through the same amount of real-world testing as the plain [`Engine_Room_ESP`](../Engine_Room_ESP) sketch yet. Expect rough edges. If you just want the proven, minimal firmware, use `Engine_Room_ESP` instead.
+> **⚠️ Work in progress.** This is a newer variant of the EngRoom firmware, meant to pair with [`Bridge_ESP_Webpage`](../Bridge_ESP_Webpage). It hasn't been through the same amount of real-world testing as the plain [`Engine_Room_ESP`](../../Engine_Room_ESP) sketch yet. Expect rough edges. If you just want the proven, minimal firmware, use `Engine_Room_ESP` instead.
 
 Stardrive section controller — same core effects as `Engine_Room_ESP` (nacelles, deflector, impulse engines, nav lights, neck/case windows, ESP-NOW to Bridge/DataPad), plus:
 

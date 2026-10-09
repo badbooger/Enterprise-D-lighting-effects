@@ -1,0 +1,6 @@
+[Unit]
+Description=Load Bridge sound files onto DY-SV17F module /dev/%i
+
+[Service]
+Type=oneshot
+ExecStart=/home/pi/bench/Sound_Loader/load_sounds.sh %i

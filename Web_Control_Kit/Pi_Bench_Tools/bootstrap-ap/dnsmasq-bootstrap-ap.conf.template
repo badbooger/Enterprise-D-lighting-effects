@@ -1,0 +1,17 @@
+# Rendered to /etc/dnsmasq.d/bootstrap-ap.conf by setup-bootstrap-ap.sh.
+# Drop-in file (not the main /etc/dnsmasq.conf) so removing this one file is
+# the entire rollback for dnsmasq's part of the setup.
+#
+# DHCP only — no gateway, no DNS server handed out. This network is deliberately
+# isolated (no internet access over it, on purpose — see bootstrap-ap/README.md).
+# A client joining this AP must NOT get a competing default route.
+
+interface=wlan0
+bind-interfaces
+dhcp-range=__DHCP_START__,__DHCP_END__,255.255.255.0,__LEASE_TIME__
+
+# dnsmasq advertises itself as router + DNS by default — without these, a laptop
+# joining this AP gets a competing default route with no internet behind it.
+port=0
+dhcp-option=option:router
+dhcp-option=option:dns-server
