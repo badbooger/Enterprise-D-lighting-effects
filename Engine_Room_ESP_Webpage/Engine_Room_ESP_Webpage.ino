@@ -11,6 +11,7 @@
 #include <ArduinoOTA.h>
 #include <Preferences.h>
 #include <WebServer.h>
+#include <Update.h>
 #include <math.h>
 
 void RevertWiFi();
@@ -42,7 +43,7 @@ uint32_t   bridgeJoinStartMs = 0;
 bool       bridgeStaWasUp    = false;
 bool       fallbackApActive  = false;
 uint32_t   fallbackStartMs   = 0;
-WebServer  fallbackServer(80);
+WebServer  engWebServer(80);
 
 uint8_t broadcastAddress[]  = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00};  // DataPad — run MAC_address_retriver on your board (or use SETMAC below)
 uint8_t bridgeAddress[]     = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00};  // Bridge — run MAC_address_retriver on your board (or use SETMAC below)
@@ -67,7 +68,9 @@ uint8_t dataPad2Address[]   = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00};  // DataPad 
 #define LED_ASSEMBLY_MODE  27
 #define LED_WARP           28  // nacelle warp speed (ledValue 0=normal, 1-10=warp speed)
 #define LED_BAT_LEVEL      31  // EngRoom → DataPad: battery mV as int
+#define LED_NAV_MODE       33  // both ESPs: persisted nav behavior (ledValue 0=blink, 1=always on)
 #define LED_PAIR_DATAPAD   34  // both ESPs: open a listen-and-adopt window for a broadcasting DataPad (startWifi=4)
+#define LED_ALL_ON         35  // both ESPs: instant every LED on (web page All On/Off toggle)
 #define LED_ALL_OFF       99
 
 // Special group constants
@@ -120,14 +123,14 @@ const int WIN_PINS[] = {20, 7, 21};  // neck (all), eng top, eng bot
 #define IDX_NAV        5   // GPIO 5
 #define IDX_DEFLECTOR  6   // GPIO 6
 #define IDX_IMPULSE    7   // GPIO 10
-#define IDX_NAC_RIGHT  8   // GPIO 9
+#define IDX_NAC_RIGHT  8   // GPIO 3
 #define IDX_NAC_LEFT   9   // GPIO 8
 #define IDX_PHOTON    10   // GPIO 4
 #define IDX_PHOTON_AFT 11  // GPIO 9 (Photon 2x variant)
 
 // All pins in order — used only by assembly mode walk
-const int ALL_PINS[]  = {4, 5, 6, 7, 8, 9, 10, 20, 21};
-#define NUM_ALL_PINS 9
+const int ALL_PINS[]  = {3, 4, 5, 6, 7, 8, 9, 10, 20, 21};
+#define NUM_ALL_PINS 10
 
 #define LEDC_FREQ 5000
 #define LEDC_BITS 8
@@ -224,6 +227,7 @@ bool assembledMode = true;   // false = run independently, no Bridge sync messag
 
 // ── Assembly mode (NVS-backed) ────────────────────────────────────────────────
 bool     asmMode    = false;
+bool     navAlwaysOn = false;
 uint32_t lastAsmMs  = 0;
 int      asmPhase   = 0;
 int      asmWalkIdx = 0;
@@ -260,7 +264,7 @@ void pinWrite(int pin, bool on) {
     ledcWrite(pin, on ? 0 : 255);   // active-low
     return;
   }
-  if (pin == PIN_NAV || pin == PIN_DEFLECTOR || pin == PIN_IMPULSE ||
+  if (pin == PIN_DEFLECTOR || pin == PIN_IMPULSE ||
       pin == PIN_NAC_R || pin == PIN_NAC_L   || pin == PIN_PHOTON) {
     ledcWrite(pin, on ? 255 : 0);
   } else {
@@ -277,7 +281,7 @@ void allOff() {
     digitalWrite(WIN_PINS[i], LOW);
     windowOn[i] = false;
   }
-  ledcWrite(PIN_NAV,       0);
+  digitalWrite(PIN_NAV, LOW);
   ledcWrite(PIN_DEFLECTOR, 0);
   ledcWrite(PIN_IMPULSE,   0);
   ledcWrite(PIN_NAC_R,     0);
@@ -316,13 +320,15 @@ void updateBlink() {
     if (now - connPatternMs >= CONN_LOST_PATTERN[connPatternIdx]) {
       connPatternMs  = now;
       connPatternIdx = (connPatternIdx + 1) % CONN_PATTERN_LEN;
-      ledcWrite(PIN_NAV, (connPatternIdx % 2 == 0) ? 255 : 0);
+      digitalWrite(PIN_NAV, (connPatternIdx % 2 == 0) ? HIGH : LOW);
     }
+  } else if (navAlwaysOn) {
+    if (!blinkState) { blinkState = true; digitalWrite(PIN_NAV, HIGH); }
   } else {
     if (now - lastBlinkMs >= blinkIntervalMs) {
       lastBlinkMs = now;
       blinkState  = !blinkState;
-      ledcWrite(PIN_NAV, blinkState ? 255 : 0);
+      digitalWrite(PIN_NAV, blinkState ? HIGH : LOW);
     }
   }
 }
@@ -550,7 +556,7 @@ void updateShutdown() {
   bool nacDone = false;
   for (int i = 0; i < s.count; i++) {
     int idx = s.idx[i]; if (idx < 0) continue;
-    if      (idx == IDX_NAV)       { blinkActive = false; ledcWrite(PIN_NAV, 0); }
+    if      (idx == IDX_NAV)       { blinkActive = false; digitalWrite(PIN_NAV, LOW); }
     else if (idx == IDX_DEFLECTOR) { deflectorActive = false; ledcWrite(PIN_DEFLECTOR, 0); }
     else if (idx == IDX_IMPULSE)   { impulseActive = false; ledcWrite(PIN_IMPULSE, 0); }
     else if ((idx == IDX_NAC_RIGHT || idx == IDX_NAC_LEFT) && !nacDone) {
@@ -710,11 +716,19 @@ void handleLedCommand(int grp, int cmd, int val) {
       intentionallyOff = true;
       break;
 
+    case LED_ALL_ON:
+      if (currentEffect == EFF_ELEC_SHORT) stopElecShort();
+      allOff();
+      asmMode = false;
+      intentionallyOff = false;
+      for (int i = 0; i < NUM_ALL_PINS; i++) pinWrite(ALL_PINS[i], true);
+      break;
+
     case LED_ON:
       if (grp == GRP_ALL || grp == GRP_ALL_WINDOWS || grp < 0) {
         for (int i = 0; i < NUM_WINDOWS; i++) { digitalWrite(WIN_PINS[i], HIGH); windowOn[i] = true; }
       } else if (grp == IDX_NAV) {
-        blinkActive = false; ledcWrite(PIN_NAV, 255);
+        blinkActive = false; digitalWrite(PIN_NAV, HIGH);
       } else if (grp == IDX_DEFLECTOR) {
         deflectorActive = true;
       } else if (grp == IDX_IMPULSE) {
@@ -738,7 +752,7 @@ void handleLedCommand(int grp, int cmd, int val) {
       } else if (grp == GRP_ALL_WINDOWS) {
         for (int i = 0; i < NUM_WINDOWS; i++) { digitalWrite(WIN_PINS[i], LOW); windowOn[i] = false; }
       } else if (grp == IDX_NAV) {
-        blinkActive = false; ledcWrite(PIN_NAV, 0);
+        blinkActive = false; digitalWrite(PIN_NAV, LOW);
       } else if (grp == IDX_DEFLECTOR) {
         deflectorActive = false; ledcWrite(PIN_DEFLECTOR, 0);
       } else if (grp == IDX_IMPULSE) {
@@ -809,6 +823,11 @@ void handleLedCommand(int grp, int cmd, int val) {
     case LED_EFFECTS_SIMPLE:
       effectsSimple = (val != 0);
       prefs.begin("engroom", false); prefs.putBool("eff_simple", effectsSimple); prefs.end();
+      break;
+
+    case LED_NAV_MODE:
+      navAlwaysOn = (val != 0);
+      prefs.begin("engroom", false); prefs.putBool("nav_mode", navAlwaysOn); prefs.end();
       break;
 
     case LED_ASSEMBLY_MODE:
@@ -943,7 +962,8 @@ void setup() {
   pinMode(PIN_PHOTON,    OUTPUT); digitalWrite(PIN_PHOTON,    LOW);
   pinMode(PIN_PHOTON_AFT, OUTPUT); digitalWrite(PIN_PHOTON_AFT, HIGH);  // active-low, idle off
 
-  ledcAttach(PIN_NAV,       LEDC_FREQ, LEDC_BITS);
+  // C3 has only 6 LEDC channels. Nav is only ever fully on/off, so it runs as
+  // plain digital to leave a channel for the aft photon's charge/fire fade.
   ledcAttach(PIN_DEFLECTOR, LEDC_FREQ, LEDC_BITS);
   ledcAttach(PIN_IMPULSE,   LEDC_FREQ, LEDC_BITS);
   ledcAttach(PIN_NAC_R,     LEDC_FREQ, LEDC_BITS);
@@ -962,6 +982,7 @@ void setup() {
   connLostMs       = prefs.getUInt("conn_ms", 300000);
   effectsSimple    = prefs.getBool("eff_simple", false);
   asmMode          = prefs.getBool("asm_mode",    false);
+  navAlwaysOn      = prefs.getBool("nav_mode",    false);
   assembledMode    = prefs.getBool("sync_mode",   true);
   bool wifiAuto    = prefs.getBool("wifi_auto",  false);
   if (wifiAuto) {
@@ -1078,7 +1099,7 @@ void setup() {
   bootIndicatorStartMs = millis();
   bootIndicatorBlinkMs = millis();
   bootIndicatorPhase   = true;
-  ledcWrite(PIN_NAV,   255);
+  digitalWrite(PIN_NAV, HIGH);
   ledcWrite(PIN_NAC_R, 255);
   ledcWrite(PIN_NAC_L, 255);
 }
@@ -1159,14 +1180,14 @@ void loop() {
   if (bootIndicatorActive) {
     if (millis() - bootIndicatorStartMs >= 20000) {
       bootIndicatorActive = false;
-      ledcWrite(PIN_NAV,   0);
+      digitalWrite(PIN_NAV, LOW);
       ledcWrite(PIN_NAC_R, 0);
       ledcWrite(PIN_NAC_L, 0);
     } else if (millis() - bootIndicatorBlinkMs >= 500) {
       bootIndicatorBlinkMs = millis();
       bootIndicatorPhase   = !bootIndicatorPhase;
       uint8_t v = bootIndicatorPhase ? 255 : 0;
-      ledcWrite(PIN_NAV,   v);
+      digitalWrite(PIN_NAV, v ? HIGH : LOW);
       ledcWrite(PIN_NAC_R, v);
       ledcWrite(PIN_NAC_L, v);
     }
@@ -1194,7 +1215,7 @@ void loop() {
         handleLedCommand(-1, LED_STARTUP, 0);
       }
       blinkActive = true; connPatternIdx = 0; connPatternMs = millis();
-      ledcWrite(PIN_NAV, 255);
+      digitalWrite(PIN_NAV, HIGH);
     }
   }
 
@@ -1251,7 +1272,7 @@ void handleFallbackRoot() {
   String html = "<html><body><h3>EngRoom Fallback</h3>";
   html += "<p>STA: " + String(WiFi.status() == WL_CONNECTED ? "connected to Bridge" : "retrying Bridge AP") + "</p>";
   html += "<p>MAC: " + WiFi.macAddress() + "</p>";
-  html += "<p>Fallback uptime: " + String((millis() - fallbackStartMs) / 1000) + "s</p>";
+  if (fallbackApActive) html += "<p>Fallback uptime: " + String((millis() - fallbackStartMs) / 1000) + "s</p>";
   html += "<p>Free heap: " + String(ESP.getFreeHeap()) + " bytes</p>";
   html += "<p>Last ESP-NOW receive: ";
   if (!espNowReceived) html += "never";
@@ -1261,19 +1282,20 @@ void handleFallbackRoot() {
   if (!lastSendKnown) html += "never";
   else html += String(lastSendOk ? "OK" : "FAILED") + ", " + String((millis() - lastSendMs) / 1000) + "s ago";
   html += "</p>";
+  html += "<p><a href=\"/update\">Firmware Update</a></p>";
   html += "<p><a href=\"/ledtest\">Test LEDs (assembly-mode walk)</a></p>";
   html += "<p><a href=\"/allon\">All LEDs On</a> &nbsp; <a href=\"/alloff\">All LEDs Off</a></p>";
   html += "<p><a href=\"/retryjoin\">Retry Bridge Join Now</a></p>";
   html += "<p><a href=\"/reboot\" onclick=\"return confirm('Reboot EngRoom now? Settings are not changed.')\">Reboot</a></p>";
   html += "<p><a href=\"/resetdefault\" onclick=\"return confirm('Reset EngRoom NVS settings to defaults and reboot?')\">Reset to Default</a></p>";
   html += "</body></html>";
-  fallbackServer.send(200, "text/html", html);
+  engWebServer.send(200, "text/html", html);
 }
 
 void handleFallbackLedTest() {
   Serial.println("[fallback] LED test (assembly walk) requested");
   asmMode = true; asmPhase = 0; asmWalkIdx = 0; asmStartMs = millis();
-  fallbackServer.send(200, "text/plain", "Assembly-mode LED walk started.");
+  engWebServer.send(200, "text/plain", "Assembly-mode LED walk started.");
 }
 
 // Bridge's own group index for nav lights — board-relative, not a shared
@@ -1291,7 +1313,7 @@ void handleFallbackAllOn() {
   struct_message msg; memset(&msg, 0, sizeof(msg));
   msg.ledGroup = BRIDGE_IDX_NAV; msg.ledCmd = LED_ON; msg.ledValue = 0;
   esp_now_send(bridgeAddress, (uint8_t *)&msg, sizeof(msg));
-  fallbackServer.send(200, "text/plain", "All LEDs on (EngRoom) + Bridge nav on.");
+  engWebServer.send(200, "text/plain", "All LEDs on (EngRoom) + Bridge nav on.");
 }
 
 void handleFallbackAllOff() {
@@ -1303,12 +1325,12 @@ void handleFallbackAllOff() {
   struct_message msg; memset(&msg, 0, sizeof(msg));
   msg.ledCmd = LED_ALL_OFF;
   esp_now_send(bridgeAddress, (uint8_t *)&msg, sizeof(msg));
-  fallbackServer.send(200, "text/plain", "All LEDs off (EngRoom + Bridge).");
+  engWebServer.send(200, "text/plain", "All LEDs off (EngRoom + Bridge).");
 }
 
 void handleFallbackRetryJoin() {
   Serial.println("[fallback] Retry Bridge join requested");
-  fallbackServer.send(200, "text/plain", "Retrying Bridge join now...");
+  engWebServer.send(200, "text/plain", "Retrying Bridge join now...");
   WiFi.disconnect();
   WiFi.begin(BRIDGE_AP_SSID, BRIDGE_AP_PASS);
   bridgeJoinStartMs = millis();
@@ -1316,13 +1338,13 @@ void handleFallbackRetryJoin() {
 
 void handleFallbackReboot() {
   Serial.println("[fallback] Reboot requested (settings unchanged)");
-  fallbackServer.send(200, "text/plain", "Rebooting (settings unchanged)...");
+  engWebServer.send(200, "text/plain", "Rebooting (settings unchanged)...");
   delay(300);
   ESP.restart();
 }
 
 void handleFallbackReset() {
-  fallbackServer.send(200, "text/plain", "Resetting settings to defaults (peer pairing preserved), rebooting...");
+  engWebServer.send(200, "text/plain", "Resetting settings to defaults (peer pairing preserved), rebooting...");
   // mac_bridge/mac_datapad/mac_datapad2 are factory/USB-provisioned only — no
   // broadcast auto-adopt exists for Bridge<->EngRoom pairing (unlike DataPad's
   // LED_PAIR_DATAPAD). A plain prefs.clear() would wipe them with no recovery
@@ -1341,6 +1363,70 @@ void handleFallbackReset() {
   ESP.restart();
 }
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// FIELD FIRMWARE UPDATE (/update) — buyer uploads a .bin from a phone/laptop
+// ═══════════════════════════════════════════════════════════════════════════════
+
+bool   fwReceived = false;
+String fwError;
+
+void handleFwUpdatePage() {
+  String html = "<!doctype html><html><head><meta name=viewport content=\"width=device-width,initial-scale=1\">"
+                "<title>EngRoom Firmware Update</title><style>"
+                "body{background:#000;color:#f90;font-family:sans-serif;max-width:480px;margin:auto;padding:16px}"
+                "input[type=file]{display:block;width:100%;box-sizing:border-box;padding:40px 8px;border:2px dashed #f90;color:#fc6;margin:16px 0}"
+                "button{background:#f90;color:#000;border:0;border-radius:16px;padding:12px 24px;font-size:1em}"
+                "</style></head><body><h2>EngRoom Firmware Update</h2>"
+                "<p><b>Update EngRoom before Bridge.</b> EngRoom connects through Bridge's WiFi.</p>"
+                "<p>Choose or drop the <b>EngRoom</b> .bin file:</p>"
+                "<form method=POST action=/update enctype=multipart/form-data "
+                "onsubmit=\"this.querySelector('button').disabled=true;this.querySelector('button').textContent='Uploading... do not power off'\">"
+                "<input type=file name=fw accept=.bin required><button>Upload to EngRoom</button></form>"
+                "</body></html>";
+  engWebServer.send(200, "text/html", html);
+}
+
+void handleFwUpload() {
+  HTTPUpload &up = engWebServer.upload();
+  if (up.status == UPLOAD_FILE_START) {
+    fwReceived = true;
+    fwError = "";
+    Serial.printf("[fwupdate] receiving %s\n", up.filename.c_str());
+    if (!Update.begin()) fwError = Update.errorString();
+  } else if (up.status == UPLOAD_FILE_WRITE && fwError.isEmpty()) {
+    // Fail on the first chunk with a message a buyer can act on. The core would
+    // also reject a wrong-chip image, but only after the whole upload, with a
+    // generic "could not activate" error. Header bytes 12-13 = target chip ID.
+    if (up.totalSize == 0) {
+      if (up.currentSize < 14 || up.buf[0] != 0xE9) fwError = "not an ESP32 firmware .bin file";
+      else if ((up.buf[12] | (up.buf[13] << 8)) != CONFIG_IDF_FIRMWARE_CHIP_ID)
+        fwError = "this .bin is for Bridge, not EngRoom";
+    }
+    if (fwError.isEmpty() && Update.write(up.buf, up.currentSize) != up.currentSize) fwError = Update.errorString();
+    if (!fwError.isEmpty()) Update.abort();
+  } else if (up.status == UPLOAD_FILE_END && fwError.isEmpty()) {
+    if (!Update.end(true)) fwError = Update.errorString();
+    else Serial.printf("[fwupdate] %u bytes written\n", up.totalSize);
+  } else if (up.status == UPLOAD_FILE_ABORTED) {
+    Update.abort();
+    fwError = "upload interrupted";
+  }
+}
+
+void handleFwUpdateDone() {
+  if (!fwReceived) fwError = "no file received";
+  fwReceived = false;
+  if (!fwError.isEmpty()) {
+    Serial.printf("[fwupdate] FAILED: %s\n", fwError.c_str());
+    engWebServer.send(400, "text/plain", "Update FAILED: " + fwError + "\nEngRoom is still running its old firmware.");
+    fwError = "";
+    return;
+  }
+  engWebServer.send(200, "text/plain", "Update OK. EngRoom is rebooting into the new firmware and will rejoin Bridge on its own.\nNext: update Bridge at http://192.168.4.1/update");
+  delay(500);
+  ESP.restart();
+}
+
 void startFallbackAp() {
   fallbackApActive = true;
   fallbackStartMs  = millis();
@@ -1349,18 +1435,9 @@ void startFallbackAp() {
   esp_wifi_set_channel(1, WIFI_SECOND_CHAN_NONE);       // belt-and-suspenders, same pattern used elsewhere in this sketch
   Serial.printf("[fallback] AP up: SSID=%s IP=%s ch=%d\n", FALLBACK_AP_SSID, WiFi.softAPIP().toString().c_str(), WiFi.channel());
   startBridgeServices();   // mDNS + OTA on the fallback AP itself — the actual point of this page
-  fallbackServer.on("/", handleFallbackRoot);
-  fallbackServer.on("/ledtest", handleFallbackLedTest);
-  fallbackServer.on("/allon", handleFallbackAllOn);
-  fallbackServer.on("/alloff", handleFallbackAllOff);
-  fallbackServer.on("/retryjoin", handleFallbackRetryJoin);
-  fallbackServer.on("/reboot", handleFallbackReboot);
-  fallbackServer.on("/resetdefault", handleFallbackReset);
-  fallbackServer.begin();
 }
 
 void stopFallbackAp() {
-  fallbackServer.stop();
   WiFi.softAPdisconnect(true);
   WiFi.mode(WIFI_STA);
   fallbackApActive = false;
@@ -1373,6 +1450,27 @@ void startBridgeServices() {
   else                      Serial.println("mDNS failed — continuing without it");
   ArduinoOTA.begin();
   servicesStarted = true;
+  startWebServer();
+}
+
+// Runs whenever EngRoom has any WiFi link (Bridge's AP or its own fallback AP),
+// not just in fallback — /update has to be reachable in normal kit operation.
+// Routes registered once: RevertWiFi() resets servicesStarted, which would
+// otherwise stack duplicate handlers on every later startBridgeServices().
+void startWebServer() {
+  static bool webStarted = false;
+  if (webStarted) return;
+  engWebServer.on("/", handleFallbackRoot);
+  engWebServer.on("/ledtest", handleFallbackLedTest);
+  engWebServer.on("/allon", handleFallbackAllOn);
+  engWebServer.on("/alloff", handleFallbackAllOff);
+  engWebServer.on("/retryjoin", handleFallbackRetryJoin);
+  engWebServer.on("/reboot", handleFallbackReboot);
+  engWebServer.on("/resetdefault", handleFallbackReset);
+  engWebServer.on("/update", HTTP_GET, handleFwUpdatePage);
+  engWebServer.on("/update", HTTP_POST, handleFwUpdateDone, handleFwUpload);
+  engWebServer.begin();
+  webStarted = true;
 }
 
 void updateBridgeJoin() {
@@ -1391,10 +1489,8 @@ void updateBridgeJoin() {
   }
   bridgeStaWasUp = staUp;
 
-  if (fallbackApActive) {
-    fallbackServer.handleClient();
-    return;
-  }
+  engWebServer.handleClient();
+  if (fallbackApActive) return;
 
   if (!staUp && millis() - bridgeJoinStartMs >= BRIDGE_JOIN_TIMEOUT_MS) {
     Serial.println("[bridge-join] timed out — starting fallback AP");

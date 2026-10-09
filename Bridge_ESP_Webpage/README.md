@@ -7,6 +7,8 @@ Saucer section controller — same core effects as `Bridge_ESP` (window groups, 
 - **Hosts its own WiFi access point and control webpage** (`WebServer.h`) — no home network or DataPad required to run the model. Connect a phone or laptop directly to Bridge's AP and control everything from a browser.
 - **Autonomous demo mode** — an optional showpiece loop that cycles power on/off and fires random effects on its own, useful for unattended display.
 - **DataPad auto-pairing window** — a button on the control page opens a short listen-and-adopt window so a new DataPad can be paired without recompiling anything.
+- **Browser firmware update** — `http://192.168.4.1/update` takes a compiled `.bin` by drag-and-drop (laptop) or file picker (phone). Update EngRoom first (the page links to it), then Bridge. Wrong-chip or non-firmware files are rejected before anything is written.
+- **3 quick power cycles toggle assembly mode** — power on for under 5 seconds, off, three times in a row; on the third boot assembly mode flips on/off on both boards. A way to get in or out of assembly mode with no phone at all.
 
 ---
 
@@ -61,4 +63,4 @@ Connect a phone or laptop to it, then browse to `http://192.168.4.1/`. Change th
 
 ## Everything else
 
-GPIO assignments, key effects, sound setup, and NVS settings are identical to the plain `Bridge_ESP` sketch — see that folder's README for the full reference tables. The NVS clear utility (`Bridge_NVS_Clear/`) works the same way here too.
+GPIO assignments, key effects, and sound setup are identical to the plain `Bridge_ESP` sketch (this variant adds two NVS keys: `nav_mode` for the page's Nav Always On setting, and `pwr_cycles` for the power-cycle counter) — see that folder's README for the full reference tables. The NVS clear utility (`Bridge_NVS_Clear/`) works the same way here too.

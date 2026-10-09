@@ -12,6 +12,8 @@
 #include <NetworkUdp.h>
 #include <ArduinoOTA.h>
 #include <WebServer.h>
+#include <Update.h>
+#include <esp_netif.h>
 #include "control_html.h"
 
 // ── Network / OTA ─────────────────────────────────────────────────────────────
@@ -103,7 +105,9 @@ String  selfMacStr; // Bridge's own MAC, set in setup(), read by /macs
 #define LED_ASSEMBLY_MODE  27  // toggle assembly blink mode (ledValue 1=on 0=off)
 #define LED_WARP           28  // nacelle/WarpCore warp speed (ledValue 0=off, 1-10=speed)
 #define LED_BAT_LEVEL     31   // Bridge → DataPad: battery voltage (ledValue = mV)
+#define LED_NAV_MODE      33   // both ESPs: persisted nav behavior (ledValue 0=blink, 1=always on)
 #define LED_PAIR_DATAPAD  34   // both ESPs: open a listen-and-adopt window for a broadcasting DataPad (startWifi=4)
+#define LED_ALL_ON        35   // both ESPs: instant every LED on (web page All On/Off toggle)
 #define LED_ALL_OFF       99
 
 // Bridge-local only, kit/no-DataPad firmware — never sent over ESP-NOW, so kept
@@ -167,6 +171,7 @@ uint32_t autoStartDelayMs = 10000;  // auto-startup if no ESP-NOW contact (0 = d
 // ── Assembly mode ─────────────────────────────────────────────────────────────
 // Alternates odd/even window groups to help identify panels during reassembly
 bool     asmMode    = false;
+bool     navAlwaysOn = false;
 uint32_t lastAsmMs  = 0;
 bool     asmPhase   = false;   // false = odd groups ON, true = even groups ON
 
@@ -176,6 +181,16 @@ bool startupSolo   = false;  // set per LED_STARTUP command; true = run full seq
 
 // ── Auto-start fallback ───────────────────────────────────────────────────────
 uint32_t bootMs               = 0;
+
+// 3 quick power cycles toggle assembly mode — the kit's only control without the web page.
+// A boot counts as "quick" if power is cut within PWR_CYCLE_WINDOW_MS of it.
+#define PWR_CYCLE_WINDOW_MS  5000UL
+#define PWR_CYCLE_COUNT      3
+bool     pwrCycleCountPending = false;
+// EngRoom boots alongside Bridge, so its copy of the toggle is sent a few times
+// after ESP-NOW has had time to come up on both ends.
+uint8_t  asmRelaysLeft        = 0;
+uint32_t asmRelayNextMs       = 0;
 bool     bootIndicatorActive  = false;
 uint32_t bootIndicatorStartMs = 0;
 uint32_t bootIndicatorBlinkMs = 0;
@@ -191,10 +206,11 @@ bool     autoStartFired  = false;
 // (never written to NVS) — a power-cycle always comes back up demo-on.
 bool     demoModeOn       = true;
 bool     demoSoundOn      = false;   // LED_DEMO_SOUND — muted by default
+uint32_t demoMuteUntilMs  = 0;       // power-up/down sounds skipped until then when demo sound is off
 bool     demoPoweredPhase = false;   // true once the current "powered on" phase has begun
 uint32_t demoPhaseUntilMs = 0;       // millis() when the current on/off phase should end
 uint32_t demoNextEffectMs = 0;       // next random-effect trigger time (powered-on phase only)
-uint32_t demoWarpOffMs    = 0;       // 0 = no demo-triggered warp effect currently running
+uint32_t warpOffMs        = 0;       // 0 = no warp effect currently running
 #define DEMO_ON_MIN_MS     180000UL  // 3 min
 #define DEMO_ON_MAX_MS     360000UL  // 6 min
 #define DEMO_OFF_MIN_MS     30000UL  // 30s
@@ -410,6 +426,8 @@ void updateBlink() {
       connPatternIdx = (connPatternIdx + 1) % CONN_PATTERN_LEN;
       ledcWrite(PIN_NAV, (connPatternIdx % 2 == 0) ? 255 : 0);  // even=ON, odd=OFF
     }
+  } else if (navAlwaysOn) {
+    if (!blinkState) { blinkState = true; ledcWrite(PIN_NAV, 255); }
   } else {
     if (now - lastBlinkMs >= blinkIntervalMs) {
       lastBlinkMs = now;
@@ -650,6 +668,12 @@ void updateEffects() {
 // AUTONOMOUS DEMO MODE  (kit/no-DataPad firmware only — see globals above)
 // ═══════════════════════════════════════════════════════════════════════════════
 
+#define DEMO_MUTE_MS 20000UL   // covers the startup/shutdown sequence sounds, incl. EngRoom's shutdown sound
+
+bool demoMuted() {
+  return !demoSoundOn && millis() < demoMuteUntilMs;
+}
+
 void relayToEngRoom(int grp, int cmd, int val) {
   struct_message relay;
   memset(&relay, 0, sizeof(relay));
@@ -666,13 +690,23 @@ void demoFireRandomEffect() {
     if (demoSoundOn) soundPlayRandom(SND_WEAPONS_FIRST, SND_WEAPONS_LAST);
 #endif
   } else {
-    // Engage warp at a random speed for a while, then drop back to normal —
-    // EngRoom has no auto-revert for LED_WARP, so track our own timeout.
-    relayToEngRoom(0, LED_WARP, 1 + random(10));
-    demoWarpOffMs = millis() + random(DEMO_WARP_MIN_MS, DEMO_WARP_MAX_MS + 1);
+    engageWarp(demoSoundOn);
+  }
+}
+
+// EngRoom has no auto-revert for LED_WARP, so Bridge tracks the timeout.
+void engageWarp(bool withSound) {
+  relayToEngRoom(0, LED_WARP, 1 + random(10));
+  warpOffMs = millis() + random(DEMO_WARP_MIN_MS, DEMO_WARP_MAX_MS + 1);
 #ifdef USE_SOUND
-    if (demoSoundOn) soundPlayRandom(SND_WARP_FIRST, SND_WARP_LAST);
+  if (withSound) soundPlayRandom(SND_WARP_FIRST, SND_WARP_LAST);
 #endif
+}
+
+void updateWarpRevert() {
+  if (warpOffMs && millis() >= warpOffMs) {
+    warpOffMs = 0;
+    relayToEngRoom(0, LED_WARP, 0);
   }
 }
 
@@ -680,17 +714,13 @@ void updateDemoCycle() {
   if (!demoModeOn) return;
   uint32_t now = millis();
 
-  if (demoWarpOffMs && now >= demoWarpOffMs) {
-    demoWarpOffMs = 0;
-    relayToEngRoom(0, LED_WARP, 0);
-  }
-
   if (!demoPoweredPhase) {
     // Off phase — includes the very first pre-power-on wait at boot, which
     // reuses the existing auto_ms/autoStartDelayMs NVS setting (see setup())
     // so a buyer's configured startup delay still governs the first cycle.
     if (autoStartDelayMs == 0) return;   // 0 = auto-start disabled, demo cycling stays off too
     if (currentEffect == EFF_IDLE && now >= demoPhaseUntilMs) {
+      demoMuteUntilMs = now + DEMO_MUTE_MS;
       handleLedCommand(-1, LED_STARTUP, 0);   // Bridge's own updateStartup() cascades to EngRoom
       demoPoweredPhase = true;
       demoPhaseUntilMs = now + random(DEMO_ON_MIN_MS, DEMO_ON_MAX_MS + 1);
@@ -706,7 +736,8 @@ void updateDemoCycle() {
     // Mirrors the web page's own Power Off button: relay-only to EngRoom.
     // EngRoom runs its shutdown first and relays LED_SHUTDOWN back to Bridge
     // when done (assembledMode) — see bridgeApplyCmd()'s LED_SHUTDOWN case.
-    demoWarpOffMs = 0;
+    warpOffMs = 0;
+    demoMuteUntilMs = now + DEMO_MUTE_MS;
     relayToEngRoom(0, LED_SHUTDOWN, 0);
     demoPoweredPhase = false;
     demoPhaseUntilMs = now + random(DEMO_OFF_MIN_MS, DEMO_OFF_MAX_MS + 1);
@@ -732,7 +763,7 @@ void handleLedCommand(int grp, int cmd, int val) {
       lastSeqMs     = millis();
       currentEffect = EFF_STARTUP;
 #ifdef USE_SOUND
-      soundPlayFile(SND_POWERUP_FILE);
+      if (!demoMuted()) soundPlayFile(SND_POWERUP_FILE);
 #endif
       break;
 
@@ -742,7 +773,7 @@ void handleLedCommand(int grp, int cmd, int val) {
       seqStep       = SEQ_TOTAL_STEPS - 1;
       lastSeqMs     = millis();
       currentEffect = EFF_SHUTDOWN;
-      if (!espNowReceived || !assembledMode) soundPlayRandom(SND_SHUTDOWN_FIRST, SND_SHUTDOWN_LAST);
+      if ((!espNowReceived || !assembledMode) && !demoMuted()) soundPlayRandom(SND_SHUTDOWN_FIRST, SND_SHUTDOWN_LAST);
       break;
 
     case LED_ELEC_SHORT:
@@ -763,6 +794,16 @@ void handleLedCommand(int grp, int cmd, int val) {
     case LED_ALL_OFF:
       if (currentEffect == EFF_ELEC_SHORT) stopElecShort();
       allOff();
+      break;
+
+    case LED_ALL_ON:
+      if (currentEffect == EFF_ELEC_SHORT) stopElecShort();
+      allOff();
+      asmMode = false;
+      for (int i = 0; i < NUM_WINDOWS; i++) winWrite(i, true);
+      ledcWrite(PIN_ENG_A, 255);
+      ledcWrite(PIN_ENG_B, 255);
+      ledcWrite(PIN_NAV,   255);
       break;
 
     case LED_ON:
@@ -794,9 +835,9 @@ void handleLedCommand(int grp, int cmd, int val) {
       } else if (grp == IDX_NAV) {
         blinkActive = false; ledcWrite(PIN_NAV, 0);
       } else if (grp == IDX_ENG_A) {
-        ledcWrite(PIN_ENG_A, 0);
+        engActive = false; ledcWrite(PIN_ENG_A, 0);
       } else if (grp == IDX_ENG_B) {
-        ledcWrite(PIN_ENG_B, 0);
+        engActive = false; ledcWrite(PIN_ENG_B, 0);
       } else if (grp >= 0 && grp < NUM_WINDOWS) {
         winWrite(grp, false);
       }
@@ -862,6 +903,13 @@ void handleLedCommand(int grp, int cmd, int val) {
       prefs.end();
       break;
 
+    case LED_NAV_MODE:
+      navAlwaysOn = (val != 0);
+      prefs.begin("bridge", false);
+      prefs.putBool("nav_mode", navAlwaysOn);
+      prefs.end();
+      break;
+
     case LED_ASSEMBLY_MODE:
       asmMode = (val != 0);
       prefs.begin("bridge", false);
@@ -884,7 +932,6 @@ void handleLedCommand(int grp, int cmd, int val) {
         // avoids an unwanted immediate power-on/off if toggled mid-cycle.
         bool poweredNow  = (currentEffect != EFF_IDLE) || engActive || blinkActive;
         demoPoweredPhase = poweredNow;
-        demoWarpOffMs    = 0;
         demoPhaseUntilMs = millis() + (poweredNow
                               ? random(DEMO_ON_MIN_MS, DEMO_ON_MAX_MS + 1)
                               : random(DEMO_OFF_MIN_MS, DEMO_OFF_MAX_MS + 1));
@@ -944,9 +991,10 @@ void statusFlash(uint8_t r, uint8_t g, uint8_t b, uint32_t ms = 150) {
 // — so routing is an explicit whitelist of the exact (cmd, group) pairs
 // control.html actually sends, not a generic numeric-range split.
 
-void bridgeApplyCmd(int grp, int cmd, int val, bool &local, bool &relay) {
+void bridgeApplyCmd(int grp, int cmd, int val, bool &local, bool &relay, int &relayGrp) {
   local = false;
   relay = false;
+  relayGrp = grp;
   switch (cmd) {
     case LED_STARTUP:
       // Bridge's own updateStartup() already cascades LED_STARTUP to EngRoom
@@ -963,6 +1011,7 @@ void bridgeApplyCmd(int grp, int cmd, int val, bool &local, bool &relay) {
       break;
 
     case LED_ALL_OFF:
+    case LED_ALL_ON:
     case LED_ELEC_SHORT:
     case LED_ASSEMBLY_MODE:
     case LED_SET_BLINK_MS:
@@ -980,12 +1029,6 @@ void bridgeApplyCmd(int grp, int cmd, int val, bool &local, bool &relay) {
       relay = true;
       break;
 
-    case LED_WARP:
-      // Bridge's handleLedCommand() has no LED_WARP case — only EngRoom
-      // drives nacelle warp effects.
-      relay = true;
-      break;
-
     case SND_CMD_PLAY:
     case SND_CMD_STOP:
     case SND_CMD_VOL:
@@ -998,9 +1041,16 @@ void bridgeApplyCmd(int grp, int cmd, int val, bool &local, bool &relay) {
     case LED_OFF:
     case LED_BLINK:
       if (grp == IDX_NAV || grp == IDX_ENG_A || grp == IDX_ENG_B) {
-        local = true;   // Bridge-owned indices (NAV/IM_LEFT/IM_RIGHT)
+        // Both boards have nav + impulse, but EngRoom numbers them differently
+        // (nav=5, impulse=7) — relay with the group translated.
+        local = true;
+        relay = true;
+        relayGrp = (grp == IDX_NAV) ? 5 : 7;
       } else if (grp == 6 || grp == 10 || grp == 11 || grp == 20) {
         relay = true;   // EngRoom-owned: DEFLECTOR/PHOTON/PHOTON_AFT/NAC_BOTH — see note above
+      } else if (cmd == LED_OFF && grp < 0) {
+        local = true;   // damage cancel — both boards stopElecShort() on LED_OFF grp<0
+        relay = true;
       }
       break;
 
@@ -1011,6 +1061,7 @@ void bridgeApplyCmd(int grp, int cmd, int val, bool &local, bool &relay) {
       local = true;
       break;
 
+    case LED_NAV_MODE:
     case LED_PAIR_DATAPAD:
       // Both ESPs need their own listen-and-adopt window open independently —
       // the broadcasting DataPad reaches both directly, no coordination needed.
@@ -1019,7 +1070,7 @@ void bridgeApplyCmd(int grp, int cmd, int val, bool &local, bool &relay) {
       break;
 
     default:
-      // LED_NAV_MODE, LED_FACTORY_RESET: not implemented in firmware /
+      // LED_FACTORY_RESET: not implemented in firmware /
       // explicitly out of scope this session. Falls through as a logged no-op below.
       break;
   }
@@ -1034,8 +1085,28 @@ void handleCmd() {
   int cmd = bridgeWebServer.hasArg("cmd")   ? bridgeWebServer.arg("cmd").toInt()   : 0;
   int val = bridgeWebServer.hasArg("value") ? bridgeWebServer.arg("value").toInt() : 0;
 
+  if (cmd == LED_WARP) {
+    engageWarp(true);
+    bridgeWebServer.send(200, "text/plain", "ok");
+    return;
+  }
+
+  // Keep demo's phase in step with manual power changes, otherwise it keeps
+  // firing effects (e.g. warp, which turns the nacelles on) at a dark model.
+  if (demoModeOn) {
+    if (cmd == LED_ALL_OFF || cmd == LED_SHUTDOWN) {
+      demoPoweredPhase = false;
+      demoPhaseUntilMs = millis() + random(DEMO_OFF_MIN_MS, DEMO_OFF_MAX_MS + 1);
+    } else if (cmd == LED_ALL_ON || cmd == LED_STARTUP) {
+      demoPoweredPhase = true;
+      demoPhaseUntilMs = millis() + random(DEMO_ON_MIN_MS, DEMO_ON_MAX_MS + 1);
+      demoNextEffectMs = millis() + random(DEMO_EFFECT_MIN_MS, DEMO_EFFECT_MAX_MS + 1);
+    }
+  }
+
   bool local, relay;
-  bridgeApplyCmd(grp, cmd, val, local, relay);
+  int relayGrp;
+  bridgeApplyCmd(grp, cmd, val, local, relay, relayGrp);
   Serial.printf("[/cmd] grp=%d cmd=%d val=%d -> local=%d relay=%d\n", grp, cmd, val, local, relay);
 
   if (local) {
@@ -1045,7 +1116,7 @@ void handleCmd() {
   if (relay) {
     struct_message relayMsg;
     memset(&relayMsg, 0, sizeof(relayMsg));
-    relayMsg.ledGroup = grp;
+    relayMsg.ledGroup = relayGrp;
     relayMsg.ledCmd   = cmd;
     relayMsg.ledValue = val;
     esp_err_t res = esp_now_send(broadcastAddress1, (uint8_t *)&relayMsg, sizeof(relayMsg));
@@ -1125,7 +1196,99 @@ void handleMacs() {
 // exactly the bug this endpoint replaces (see control.html's old sendCmd()).
 void handleStatus() {
   bool online = espNowReceived && !connectionLost;
-  bridgeWebServer.send(200, "application/json", String("{\"online\":") + (online ? "true" : "false") + "}");
+  bridgeWebServer.send(200, "application/json", String("{\"online\":") + (online ? "true" : "false") +
+                                                ",\"demo\":" + (demoModeOn ? "true" : "false") +
+                                                ",\"demoSound\":" + (demoSoundOn ? "true" : "false") +
+                                                ",\"damage\":" + (currentEffect == EFF_ELEC_SHORT ? "true" : "false") + "}");
+}
+
+// ── Field firmware update (/update) ───────────────────────────────────────────
+// Separate page from control.html on purpose, so the everyday control UI can't
+// trigger an upload. EngRoom has its own /update; it must go first because it
+// reaches the buyer's phone through this board's AP.
+
+bool   fwReceived = false;
+String fwError;
+
+// EngRoom's address on this AP, from the DHCP lease for its paired MAC. Linked
+// by IP rather than EngRoom.local — mDNS over a phone-to-softAP link with no
+// internet is unreliable on some phones. The lease outlives the connection, so
+// check EngRoom is actually associated first.
+String engroomLeaseIp() {
+  wifi_sta_list_t sta = {};
+  bool associated = false;
+  if (esp_wifi_ap_get_sta_list(&sta) == ESP_OK)
+    for (int i = 0; i < sta.num; i++)
+      if (memcmp(sta.sta[i].mac, broadcastAddress1, 6) == 0) associated = true;
+  if (!associated) return "";
+
+  esp_netif_t *ap = esp_netif_get_handle_from_ifkey("WIFI_AP_DEF");
+  esp_netif_pair_mac_ip_t pair = {};
+  memcpy(pair.mac, broadcastAddress1, 6);
+  if (!ap || esp_netif_dhcps_get_clients_by_mac(ap, 1, &pair) != ESP_OK || pair.ip.addr == 0) return "";
+  return IPAddress(pair.ip.addr).toString();
+}
+
+void handleFwUpdatePage() {
+  String engIp = engroomLeaseIp();
+  String html = "<!doctype html><html><head><meta name=viewport content=\"width=device-width,initial-scale=1\">"
+                "<title>Bridge Firmware Update</title><style>"
+                "body{background:#000;color:#f90;font-family:sans-serif;max-width:480px;margin:auto;padding:16px}"
+                "a{color:#9cf}"
+                "input[type=file]{display:block;width:100%;box-sizing:border-box;padding:40px 8px;border:2px dashed #f90;color:#fc6;margin:16px 0}"
+                "button{background:#f90;color:#000;border:0;border-radius:16px;padding:12px 24px;font-size:1em}"
+                "</style></head><body><h2>Bridge Firmware Update</h2>"
+                "<p><b>Step 1 - update EngRoom first.</b> EngRoom connects through Bridge's WiFi, "
+                "so updating Bridge first would cut it off.</p>";
+  if (engIp.length()) html += "<p>EngRoom update page: <a href=\"http://" + engIp + "/update\">http://" + engIp + "/update</a></p>";
+  else                html += "<p>EngRoom isn't connected to Bridge's WiFi right now. Power the model on and reload this page.</p>";
+  html += "<p><b>Step 2 - update Bridge.</b> Choose or drop the <b>Bridge</b> .bin file:</p>"
+          "<form method=POST action=/update enctype=multipart/form-data "
+          "onsubmit=\"this.querySelector('button').disabled=true;this.querySelector('button').textContent='Uploading... do not power off'\">"
+          "<input type=file name=fw accept=.bin required><button>Upload to Bridge</button></form>"
+          "</body></html>";
+  bridgeWebServer.send(200, "text/html", html);
+}
+
+void handleFwUpload() {
+  HTTPUpload &up = bridgeWebServer.upload();
+  if (up.status == UPLOAD_FILE_START) {
+    fwReceived = true;
+    fwError = "";
+    Serial.printf("[fwupdate] receiving %s\n", up.filename.c_str());
+    if (!Update.begin()) fwError = Update.errorString();
+  } else if (up.status == UPLOAD_FILE_WRITE && fwError.isEmpty()) {
+    // Fail on the first chunk with a message a buyer can act on. The core would
+    // also reject a wrong-chip image, but only after the whole upload, with a
+    // generic "could not activate" error. Header bytes 12-13 = target chip ID.
+    if (up.totalSize == 0) {
+      if (up.currentSize < 14 || up.buf[0] != 0xE9) fwError = "not an ESP32 firmware .bin file";
+      else if ((up.buf[12] | (up.buf[13] << 8)) != CONFIG_IDF_FIRMWARE_CHIP_ID)
+        fwError = "this .bin is for EngRoom, not Bridge";
+    }
+    if (fwError.isEmpty() && Update.write(up.buf, up.currentSize) != up.currentSize) fwError = Update.errorString();
+    if (!fwError.isEmpty()) Update.abort();
+  } else if (up.status == UPLOAD_FILE_END && fwError.isEmpty()) {
+    if (!Update.end(true)) fwError = Update.errorString();
+    else Serial.printf("[fwupdate] %u bytes written\n", up.totalSize);
+  } else if (up.status == UPLOAD_FILE_ABORTED) {
+    Update.abort();
+    fwError = "upload interrupted";
+  }
+}
+
+void handleFwUpdateDone() {
+  if (!fwReceived) fwError = "no file received";
+  fwReceived = false;
+  if (!fwError.isEmpty()) {
+    Serial.printf("[fwupdate] FAILED: %s\n", fwError.c_str());
+    bridgeWebServer.send(400, "text/plain", "Update FAILED: " + fwError + "\nBridge is still running its old firmware.");
+    fwError = "";
+    return;
+  }
+  bridgeWebServer.send(200, "text/plain", "Update OK. Bridge is rebooting into the new firmware - reconnect to its WiFi in about 15 seconds.");
+  delay(500);
+  ESP.restart();
 }
 
 
@@ -1205,6 +1368,18 @@ void setup() {
   autoStartDelayMs = prefs.getUInt("auto_ms",  30000);
   connLostMs       = prefs.getUInt("conn_ms",  300000);
   asmMode          = prefs.getBool("asm_mode",   false);
+  uint8_t pwrCycles = prefs.getUChar("pwr_cycles", 0) + 1;
+  if (pwrCycles >= PWR_CYCLE_COUNT) {
+    pwrCycles = 0;
+    asmMode = !asmMode;
+    prefs.putBool("asm_mode", asmMode);
+    asmRelaysLeft  = 3;
+    asmRelayNextMs = 3000;
+    Serial.printf("[pwr] %d quick power cycles — assembly mode %s\n", PWR_CYCLE_COUNT, asmMode ? "ON" : "OFF");
+  }
+  prefs.putUChar("pwr_cycles", pwrCycles);
+  pwrCycleCountPending = (pwrCycles > 0);
+  navAlwaysOn      = prefs.getBool("nav_mode",   false);
   assembledMode    = prefs.getBool("sync_mode",  true);
   bool wifiAuto    = prefs.getBool("wifi_auto", false);
   if (wifiAuto) {
@@ -1319,6 +1494,8 @@ void setup() {
   bridgeWebServer.on("/setmac", handleSetMac);
   bridgeWebServer.on("/macs", handleMacs);
   bridgeWebServer.on("/status", handleStatus);
+  bridgeWebServer.on("/update", HTTP_GET, handleFwUpdatePage);
+  bridgeWebServer.on("/update", HTTP_POST, handleFwUpdateDone, handleFwUpload);
   bridgeWebServer.begin();
 
   // Bench status LED: brief white flash if either peer MAC came from NVS
@@ -1341,6 +1518,16 @@ void setup() {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 void loop() {
+  if (pwrCycleCountPending && millis() - bootMs >= PWR_CYCLE_WINDOW_MS) {
+    pwrCycleCountPending = false;
+    prefs.begin("bridge", false); prefs.putUChar("pwr_cycles", 0); prefs.end();
+  }
+  if (asmRelaysLeft && millis() >= asmRelayNextMs) {
+    asmRelaysLeft--;
+    asmRelayNextMs = millis() + 1000;
+    relayToEngRoom(0, LED_ASSEMBLY_MODE, asmMode ? 1 : 0);
+  }
+
   if (startWifi1 == 3) {
     startWifi1 = 0;
     RevertWiFi();
@@ -1377,7 +1564,9 @@ void loop() {
 
   if (newLedCmd) {
     newLedCmd = false;
-    handleLedCommand(pendingGroup, pendingCmd, pendingValue);
+    // EngRoom sends its shutdown sound back as SND_CMD_PLAY — drop it during a muted demo power-down.
+    if (!(pendingCmd == SND_CMD_PLAY && demoMuted()))
+      handleLedCommand(pendingGroup, pendingCmd, pendingValue);
   }
 
   // Auto-start: if no ESP-NOW contact within autoStartDelayMs, run startup sequence.
@@ -1390,6 +1579,7 @@ void loop() {
   }
 
   updateDemoCycle();
+  updateWarpRevert();
 
   if (pairWindowOpen && millis() >= pairWindowUntilMs) {
     pairWindowOpen = false;

@@ -6,6 +6,7 @@ Stardrive section controller — same core effects as `Engine_Room_ESP` (nacelle
 
 - **Independent aft photon torpedo control**, for the optional second-LED "Photon 2x" torpedo variant (adds a connector on GPIO9, active-low, no transistor needed). Fires and animates separately from the forward tube — not just a mirror of it. If you don't have the second connector installed, this is simply unused.
 - **Automatically joins Bridge's WiFi AP** on boot — no manual WiFi setup needed as long as `Bridge_ESP_Webpage` is running nearby with its default AP settings.
+- **Browser firmware update** — EngRoom's own `/update` page, reached through the link on Bridge's update page. Always update EngRoom before Bridge.
 - **Fallback access point** if Bridge's AP can't be reached within 3 minutes (Bridge off, unflashed, or out of range) — EngRoom hosts its own small AP with a bare-bones recovery/test page, so you're never locked out of OTA just because Bridge is unreachable.
 
 ---
@@ -59,4 +60,4 @@ Connect to it and browse to `http://192.168.4.1/` for a plain status/test page: 
 
 ## Everything else
 
-GPIO assignments (including GPIO9 for the optional aft photon connector), key effects, and NVS settings are the same as the plain `Engine_Room_ESP` sketch — see that folder's README for the full reference tables. The NVS clear utility (`EngRoom_NVS_Clear/`) works the same way here too.
+GPIO assignments (including GPIO9 for the optional aft photon connector), key effects, and NVS settings are the same as the plain `Engine_Room_ESP` sketch, plus a `nav_mode` key. One difference: nav lights run as plain on/off rather than PWM here, because the C3 only has 6 PWM channels and the aft photon's fade needs one — see that folder's README for the full reference tables. The NVS clear utility (`EngRoom_NVS_Clear/`) works the same way here too.

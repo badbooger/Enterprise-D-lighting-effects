@@ -255,9 +255,9 @@ const char CONTROL_HTML[] PROGMEM = R"HTMLPAGE(
     <div class="panel" data-color="amber">
       <div class="panel-hdr">Power</div>
       <div class="row" data-toggle="1">
-        <button class="pwron" onclick="press(this); sendCmd(0, CMD.LED_STARTUP, 1)">Power On</button>
-        <button class="off" onclick="press(this); sendCmd(0, CMD.LED_SHUTDOWN, 0)">Power Off</button>
-        <button class="warn" onclick="press(this); sendCmd(0, CMD.LED_ALL_OFF, 0)">All Off</button>
+        <button class="pwron" onclick="press(this); setAllState('on'); sendCmd(0, CMD.LED_STARTUP, 1)">Power On</button>
+        <button class="off" onclick="press(this); setAllState('off'); sendCmd(0, CMD.LED_SHUTDOWN, 0)">Power Off</button>
+        <button class="warn" id="allBtn" data-state="off" onclick="press(this); toggleAll()">All On</button>
       </div>
     </div>
 
@@ -302,8 +302,8 @@ const char CONTROL_HTML[] PROGMEM = R"HTMLPAGE(
     <div class="panel">
       <div class="panel-hdr">Weapons</div>
       <div class="row">
-        <button class="alt" onclick="press(this); sendCmd(GROUP.PHOTON, CMD.LED_ON, 0)">Fire Torpedoes</button>
-        <button class="alt" onclick="press(this); sendCmd(GROUP.PHOTON_AFT, CMD.LED_ON, 0)">Fire Aft Torpedo</button>
+        <button class="alt" onclick="press(this); sendCmd(GROUP.PHOTON, CMD.LED_ON, 0); sendCmd(0, CMD.SND_CMD_PLAY, torpedoSoundFile())">Fire Torpedoes</button>
+        <button class="alt" onclick="press(this); sendCmd(GROUP.PHOTON_AFT, CMD.LED_ON, 0); sendCmd(0, CMD.SND_CMD_PLAY, torpedoSoundFile())">Fire Aft Torpedo</button>
       </div>
     </div>
 
@@ -324,7 +324,7 @@ const char CONTROL_HTML[] PROGMEM = R"HTMLPAGE(
     <div class="panel" data-color="purple2">
       <div class="panel-hdr">Effects</div>
       <div class="row">
-        <button class="warn" onclick="press(this); sendCmd(0, CMD.LED_ELEC_SHORT, 0)">Trigger Damage</button>
+        <button class="warn" id="dmgBtn" data-state="off" onclick="press(this); toggleDamage()">Trigger Damage</button>
       </div>
       <div class="row">
         <button class="off" data-state="off" onclick="toggleOnOff(this, 'alt', 'Assembly Mode',
@@ -339,17 +339,17 @@ const char CONTROL_HTML[] PROGMEM = R"HTMLPAGE(
            effect loop from this page. Never sent over ESP-NOW, so it's not
            part of the shared cross-sketch constant table in CLAUDE.md. -->
       <div class="row">
-        <button class="off" data-state="off" onclick="toggleOnOff(this, 'alt', 'Demo Mode',
+        <button class="off" id="demoBtn" data-state="off" onclick="toggleOnOff(this, 'alt', 'Demo Mode',
           () => sendCmd(0, CMD.LED_DEMO_MANUAL, 1),
           () => sendCmd(0, CMD.LED_DEMO_MANUAL, 0))">Demo Mode: Off</button>
       </div>
-      <!-- Demo mode defaults muted (volume 0) so a unit left running at a
+      <!-- Demo mode defaults muted (LED_DEMO_SOUND off) so a unit left running at a
            store/convention/home display doesn't disturb anyone — sound is
            opt-in here, not a "forgot to turn it off" reminder. -->
       <div class="row">
-        <button class="off" data-state="off" onclick="toggleOnOff(this, 'blue', 'Demo Sound',
-          () => sendCmd(0, CMD.SND_CMD_VOL, 15),
-          () => sendCmd(0, CMD.SND_CMD_VOL, 0))">Demo Sound: Off</button>
+        <button class="off" id="demoSndBtn" data-state="off" onclick="toggleOnOff(this, 'blue', 'Demo Sound',
+          () => sendCmd(0, CMD.LED_DEMO_SOUND, 1),
+          () => sendCmd(0, CMD.LED_DEMO_SOUND, 0))">Demo Sound: Off</button>
       </div>
     </div>
 
@@ -409,13 +409,14 @@ const char CONTROL_HTML[] PROGMEM = R"HTMLPAGE(
     LED_SET_BLINK_MS: 20,
     LED_ASSEMBLY_MODE: 27, LED_WARP: 28,
     LED_FACTORY_RESET: 32, // shared — Bridge broadcasts to EngRoom too
-    LED_NAV_MODE: 33, // shared — Bridge broadcasts to EngRoom too; not yet in firmware, see DEVNOTES Fix Queue #8
+    LED_NAV_MODE: 33, // shared — Bridge relays to EngRoom too
     LED_PAIR_DATAPAD: 34, // shared — Bridge broadcasts to EngRoom too; not yet in firmware, see DEVNOTES Fix Queue #9
+    LED_ALL_ON: 35, // shared — Bridge relays to EngRoom too
     LED_ALL_OFF: 99,
     SND_CMD_PLAY: 50, SND_CMD_STOP: 51, SND_CMD_VOL: 52,
     // Bridge-local only (see Demo Mode panel below) — never sent over ESP-NOW,
     // so it's kept well clear of the shared ledCmd number range (1-33, 50+).
-    LED_DEMO_MANUAL: 100
+    LED_DEMO_MANUAL: 100, LED_DEMO_SOUND: 101
   };
   // GROUP.PHOTON/PHOTON_AFT/DEFLECTOR/NAC_BOTH are EngRoom's IDX_PHOTON/
   // IDX_PHOTON_AFT/IDX_DEFLECTOR/GRP_BOTH_NAC (Engine_Room_ESP.ino) — Bridge's
@@ -423,7 +424,10 @@ const char CONTROL_HTML[] PROGMEM = R"HTMLPAGE(
   // than applying them locally. PHOTON_AFT is the Photon 2x variant's aft LED.
   const GROUP = { NAV: 15, IM_LEFT: 16, IM_RIGHT: 17, PHOTON: 10, PHOTON_AFT: 11, DEFLECTOR: 6, NAC_BOTH: 20 };
   // File numbers from SOUND_MAP.md — Bridge DY-SV17F, files 01-25 only.
-  const SND = { RED_ALERT: 6, FIRE_WEAPONS: 19 };
+  const SND = { RED_ALERT: 6, FIRE_WEAPONS: 19, TORPEDO_FIRST: 22 };
+  function torpedoSoundFile() {
+    return SND.TORPEDO_FIRST + Math.floor(Math.random() * 2);
+  }
   function randomSoundFile() {
     return Math.floor(Math.random() * 25) + 1;
   }
@@ -449,6 +453,31 @@ const char CONTROL_HTML[] PROGMEM = R"HTMLPAGE(
     btn.classList.toggle('off', !turningOn);
     btn.classList.toggle(colorClass, turningOn);
     if (turningOn) onAction(); else offAction();
+  }
+
+  function setDamageState(on) {
+    const btn = document.getElementById('dmgBtn');
+    btn.dataset.state = on ? 'on' : 'off';
+    btn.textContent = on ? 'Cancel Damage' : 'Trigger Damage';
+  }
+
+  // Cancel is LED_OFF on group -1 — group 0 is a real window group on both boards.
+  function toggleDamage() {
+    const turningOn = document.getElementById('dmgBtn').dataset.state !== 'on';
+    setDamageState(turningOn);
+    sendCmd(turningOn ? 0 : -1, turningOn ? CMD.LED_ELEC_SHORT : CMD.LED_OFF, 0);
+  }
+
+  function setAllState(state) {
+    const btn = document.getElementById('allBtn');
+    btn.dataset.state = state;
+    btn.textContent = state === 'on' ? 'All Off' : 'All On';
+  }
+
+  function toggleAll() {
+    const turningOn = document.getElementById('allBtn').dataset.state !== 'on';
+    setAllState(turningOn ? 'on' : 'off');
+    sendCmd(0, turningOn ? CMD.LED_ALL_ON : CMD.LED_ALL_OFF, 0);
   }
 
   function press(btn) {
@@ -501,11 +530,23 @@ const char CONTROL_HTML[] PROGMEM = R"HTMLPAGE(
   // the bug in the old sendCmd()-sets-ONLINE-on-any-success logic (see
   // DEVNOTES Fix History): unplugging EngRoom entirely still showed ONLINE
   // because Bridge itself was still reachable.
+  function syncToggle(id, label, colorClass, on) {
+    const btn = document.getElementById(id);
+    if (btn.dataset.state === (on ? 'on' : 'off')) return;
+    btn.dataset.state = on ? 'on' : 'off';
+    btn.textContent = `${label}: ${on ? 'On' : 'Off'}`;
+    btn.classList.toggle('off', !on);
+    btn.classList.toggle(colorClass, on);
+  }
+
   async function pollStatus() {
     try {
       const res = await fetch('/status');
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const d = await res.json();
+      syncToggle('demoBtn', 'Demo Mode', 'alt', d.demo);
+      syncToggle('demoSndBtn', 'Demo Sound', 'blue', d.demoSound);
+      if (document.getElementById('dmgBtn').dataset.state !== (d.damage ? 'on' : 'off')) setDamageState(d.damage);
       if (d.online) {
         statusBannerEl.classList.add('hidden');
         statusTitleEl.textContent = 'SYSTEM ONLINE';
