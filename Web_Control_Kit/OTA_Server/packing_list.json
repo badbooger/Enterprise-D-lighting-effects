@@ -78,6 +78,11 @@
         {
           "label": "Speaker",
           "qty": 2
+        },
+        {
+          "label": "Small zip ties",
+          "qty": "a few",
+          "note": "Mount the speakers to the lower framing"
         }
       ]
     },
