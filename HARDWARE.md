@@ -196,6 +196,18 @@ ESP32 quiescent (normal use, ESP-NOW active, no WiFi):
 
 Real-world draw is lower — nav lights blink at ~50% duty, not all groups active simultaneously.
 
+**Measured 2026-10-13 — Bridge on a 7.4V bench supply, running the web-control firmware (WiFi access point on full time):**
+
+| Condition | Draw |
+|-----------|------|
+| All LEDs off (ESP32-S3 + WiFi AP + idle sound player) | ~170mA |
+| All LEDs on, no sound | ~490mA |
+| All LEDs on + sound at 3/4 volume (peaks) | ~560mA |
+
+The LED share (~320mA) matches the estimate above; the extra over it is the always-on WiFi AP (the ESP-NOW-only figure is ~55mA). Sound adds ~50mA at default volume, ~70mA at 3/4, ~200mA at full volume — full volume isn't worth using anyway, speaker quality drops off above ~3/4. Nearly all of the baseline passes through the LM1117-3.3: ≈0.7W at 7.4V, ≈0.9W at 8.4V — warm for SOT-223 but within limits. Worst-case all-on runtime with this firmware is ~1.4 hrs (2S2P 350mAh) / ~4 hrs (2S2P 1000mAh).
+
+**Single power source mod — whole-model budget** (EngRoom measured ~350mA max): ≈0.84A all LEDs on, ≈0.91A with sound at 3/4 volume, ≈1.05A peak at full volume. EngRoom's 1.25mm input JST (typically ~1A per pin) carries all of it and is the limiting part — fine in normal use, only marginal for sustained all-on + full volume. The neck → Bridge PCB3 jumper carries the Bridge only (≤0.7A). Use a 7.4V supply rated ≥1.5A.
+
 ### Battery Configuration and Runtime
 
 | Section | Config | 350mAh cells | 1000mAh cells |
@@ -483,6 +495,10 @@ All three Bridge PCBs revised. Current boards unchanged — firmware update defe
 - **All boards:** Group 9 LED pin now correctly split between groups 9 and 1 — was only connected to group 9 on original layout. Battery voltage monitor added on GPIO 2 (ADC1) — voltage divider R1=270kΩ, R2=100kΩ on PCB, tapped from local supply rail close to GPIO 2. Maps 6.0V–8.4V → 1.62V–2.27V on ADC. Use ADC_11db attenuation in firmware.
 
 > **PCB 3 — 0Ω regulator bypass jumper (2026-08-15):** Added a 0Ω 0603 resistor footprint in parallel with the linear regulator that steps the battery supply down to 5V for the DY-SV17F. PCB 3 is the only board with a 5V rail (for the sound module), so this is the only board that needs it. Lets a future 5V-input build skip a respin: depopulate the regulator, populate the 0Ω resistor to feed VCC straight from the 5V input, and swap the LED current-limiting resistors for the 5V-appropriate value (per the LED resistor table above).
+>
+> **Observed 2026-10-13 (bench, eyeball only — not a formal test):** stock boards (1.2kΩ LED resistors, regulator fitted) on a bench supply down to 4.5V — sound still plays and the LEDs are bright enough given how many the model has. **So the LED resistor swap above is not needed for a 5V build** — stock 1.2kΩ is fine (≈1.3mA/LED at 5V vs the original kit's ≈1.6mA). At 5V in, the LM1117-3.3 (PCB2) keeps regulation; the LM1117-5.0 (PCB3) sits in dropout and feeds the DY ≈3.9V — works, and the 0Ω bypass restores full 5V if wanted. **Original 3×AAA power is not viable:** alkalines sag to ~3.6–4.2V under load, below the LM1117-3.3's ~4.4V minimum, so the S3 browns out on radio bursts long before the cells are flat.
+>
+> **⚠️ A board with the 0Ω bypass fitted is 5V-only.** With the regulator removed, the DY-SV17F sees the raw input — plugging in the 7.4–8.4V 2S pack will kill it. Label the board clearly.
 
 ---
 
