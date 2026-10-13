@@ -1,0 +1,148 @@
+{
+  "sections": [
+    {
+      "name": "Saucer boards",
+      "items": [
+        {
+          "label": "Saucer PCB 1",
+          "qty": 1
+        },
+        {
+          "label": "Saucer PCB 2 with ESP32-S3",
+          "qty": 1,
+          "note": "Pair shows PASS on the dashboard"
+        },
+        {
+          "label": "Saucer PCB 3 with DY-SV17F",
+          "qty": 1,
+          "note": "Sound module loaded on the Pi"
+        }
+      ]
+    },
+    {
+      "name": "Stardrive boards",
+      "items": [
+        {
+          "label": "Engine Room PCB with Xiao ESP32-C3",
+          "qty": 1
+        },
+        {
+          "label": "Battle Bridge / Neck PCB",
+          "qty": 1
+        },
+        {
+          "label": "Nacelle LED controller",
+          "qty": 2
+        }
+      ]
+    },
+    {
+      "name": "Cables and connectors",
+      "items": [
+        {
+          "label": "15-pin FFC",
+          "qty": 1
+        },
+        {
+          "label": "8-pin FFC 150mm",
+          "qty": 1
+        },
+        {
+          "label": "8-pin FFC 300mm",
+          "qty": 2
+        },
+        {
+          "label": "8-pin FFC 400mm",
+          "qty": 2
+        },
+        {
+          "label": "Short JST male-to-male power jumper",
+          "qty": 2,
+          "note": "Jumps power between the 3 saucer PCBs"
+        },
+        {
+          "label": "Long JST male-to-male jumper",
+          "qty": 1,
+          "note": "Neck to saucer PCB"
+        },
+        {
+          "label": "JST male-to-female lead",
+          "qty": 1,
+          "note": "Neck to saucer PCB"
+        },
+        {
+          "label": "Male JST with long leads (~16 in)",
+          "qty": 1,
+          "note": "Model power supply"
+        }
+      ]
+    },
+    {
+      "name": "Sound",
+      "items": [
+        {
+          "label": "Speaker",
+          "qty": 2
+        }
+      ]
+    },
+    {
+      "name": "Replacement LEDs (prewired)",
+      "items": [
+        {
+          "label": "Part 22L LED",
+          "qty": 1
+        },
+        {
+          "label": "Aft photon torpedo LED",
+          "qty": 1
+        }
+      ]
+    },
+    {
+      "name": "Spares",
+      "items": [
+        {
+          "label": "Spare white LEDs",
+          "qty": "2-3"
+        },
+        {
+          "label": "Bare JST 1.25 connectors",
+          "qty": "TBD",
+          "note": "Replacements if any break during disassembly"
+        }
+      ]
+    },
+    {
+      "name": "Paperwork",
+      "items": [
+        {
+          "label": "Instruction / warning card",
+          "qty": 1
+        },
+        {
+          "label": "QR code sticker (WiFi + control page)",
+          "qty": 1
+        }
+      ]
+    },
+    {
+      "name": "External power option — only if ordered",
+      "optional": true,
+      "items": [
+        {
+          "label": "USB-C breakout board",
+          "qty": 1
+        },
+        {
+          "label": "XL6009 boost converter (set under load, pot glued)",
+          "qty": 1
+        },
+        {
+          "label": "2.5A slow-blow fuse + inline holder",
+          "qty": 1
+        }
+      ]
+    }
+  ]
+}

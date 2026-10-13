@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
-# Serves compiled .bin files for Batch_Bootstrap's HTTPUpdate pull, and a
+# Serves compiled .bin files for Batch_Bootstrap's HTTPUpdate pull, a
 # bench dashboard (/status) showing each board's pairing/flash progress and the
-# sound loader's state. No dependencies. Bench-only — never shipped.
+# sound loader's state, and a kit packing checklist (/pack). No dependencies.
+# Bench-only — never shipped.
 
 import http.server
 import functools
@@ -19,6 +20,9 @@ EVENT_LOG = "events.csv"
 SOUND_STATUS = "sound_status.json"
 SOUND_LOG = "sound_log.csv"
 EVENT_FIELDS = ["timestamp", "mac", "role", "stage", "peer", "detail", "client_ip"]
+PACK_LIST = "packing_list.json"
+PACK_STATE = "packing_state.json"
+PACK_LOG = "packing_log.csv"
 
 lock = threading.Lock()
 boards = {}   # mac -> {role, peer, ip, stages: {stage: timestamp}, detail, last}
@@ -127,6 +131,57 @@ def archive_events():
     boards.clear()
 
 
+def item_id(section, item):
+    return f"{section['name']}/{item['label']}"
+
+
+def load_pack_list():
+    with open(PACK_LIST, encoding="utf-8") as f:
+        return json.load(f)
+
+
+def load_pack_checked():
+    # Kept on disk so a tablet refresh or a Pi reboot mid-kit doesn't lose ticks.
+    if not os.path.exists(PACK_STATE):
+        return set()
+    with open(PACK_STATE) as f:
+        return set(json.load(f))
+
+
+def save_pack_checked(checked):
+    with open(PACK_STATE, "w") as f:
+        json.dump(sorted(checked), f)
+
+
+def packed_count():
+    if not os.path.exists(PACK_LOG):
+        return 0
+    with open(PACK_LOG, newline="") as f:
+        return sum(1 for _ in csv.DictReader(f))
+
+
+def pack_state():
+    return {"list": load_pack_list(), "checked": sorted(load_pack_checked()), "kit": packed_count() + 1}
+
+
+def finish_kit():
+    lst, checked = load_pack_list(), load_pack_checked()
+    missing = [item_id(sec, it) for sec in lst["sections"] if not sec.get("optional")
+               for it in sec["items"] if item_id(sec, it) not in checked]
+    if missing:
+        return False, "Not everything is checked: " + ", ".join(missing)
+    extras = [it["label"] for sec in lst["sections"] if sec.get("optional")
+              for it in sec["items"] if item_id(sec, it) in checked]
+    new_file = not os.path.exists(PACK_LOG)
+    with open(PACK_LOG, "a", newline="") as f:
+        w = csv.writer(f)
+        if new_file:
+            w.writerow(["kit", "timestamp", "options"])
+        w.writerow([packed_count() + 1, now(), "; ".join(extras)])
+    save_pack_checked(set())
+    return True, "ok"
+
+
 class Handler(http.server.SimpleHTTPRequestHandler):
     def send_body(self, code, ctype, body):
         data = body.encode()
@@ -155,6 +210,13 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         if url.path in ("/status", "/status/"):
             return self.send_body(200, "text/html; charset=utf-8", DASHBOARD_HTML)
 
+        if url.path in ("/pack", "/pack/"):
+            return self.send_body(200, "text/html; charset=utf-8", PACK_HTML)
+
+        if url.path == "/api/pack":
+            with lock:
+                return self.send_body(200, "application/json", json.dumps(pack_state()))
+
         if url.path == "/api/state":
             with lock:
                 return self.send_body(200, "application/json", json.dumps(build_state()))
@@ -172,14 +234,30 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         return super().do_GET()
 
     def do_POST(self):
-        if self.path == "/api/new-batch":
+        url = urllib.parse.urlparse(self.path)
+        q = {k: v[0] for k, v in urllib.parse.parse_qs(url.query).items()}
+        if url.path == "/api/new-batch":
             with lock:
                 archive_events()
             return self.send_body(200, "text/plain", "ok\n")
+        if url.path == "/api/pack/toggle":
+            with lock:
+                checked = load_pack_checked()
+                checked ^= {q.get("id", "")}
+                save_pack_checked(checked)
+                return self.send_body(200, "application/json", json.dumps(pack_state()))
+        if url.path == "/api/pack/clear":
+            with lock:
+                save_pack_checked(set())
+                return self.send_body(200, "application/json", json.dumps(pack_state()))
+        if url.path == "/api/pack/done":
+            with lock:
+                ok, msg = finish_kit()
+                return self.send_body(200 if ok else 409, "text/plain", msg + "\n")
         self.send_body(404, "text/plain", "not found\n")
 
     def log_message(self, fmt, *args):
-        if "/api/state" not in self.path:   # dashboard polls every 2s — keep the journal readable
+        if not self.path.startswith("/api/"):   # dashboard polls every 2s — keep the journal readable
             super().log_message(fmt, *args)
 
 
@@ -205,7 +283,7 @@ DASHBOARD_HTML = r"""<!doctype html>
   .empty { color:var(--dim); }
 </style></head><body>
 <h1>Bench Provisioning</h1>
-<div class="sub">Updates every 2s · <span id="now"></span> · <span id="conn"></span></div>
+<div class="sub">Updates every 2s · <span id="now"></span> · <span id="conn"></span> · <a href="/pack" style="color:var(--run)">Packing checklist</a></div>
 
 <h2>Sound module</h2>
 <div class="card" id="sound"></div>
@@ -257,6 +335,100 @@ async function newBatch(){
   await fetch("/api/new-batch", {method:"POST"}); poll();
 }
 poll(); setInterval(poll, 2000);
+</script></body></html>
+"""
+
+PACK_HTML = r"""<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kit Packing</title>
+<style>
+  :root { --bg:#111; --panel:#1c1c1c; --text:#eee; --dim:#888; --ok:#3c3; --bad:#e44; --run:#fc3; --line:#333; }
+  body { background:var(--bg); color:var(--text); font:18px system-ui, sans-serif; margin:0; padding:16px; max-width:900px; }
+  a { color:var(--run); }
+  .top { display:flex; justify-content:space-between; align-items:baseline; gap:12px; flex-wrap:wrap; }
+  h1 { font-size:26px; margin:0; } .sub { color:var(--dim); font-size:15px; }
+  h2 { font-size:15px; margin:22px 0 6px; color:var(--dim); text-transform:uppercase; letter-spacing:.05em; }
+  .item { display:flex; align-items:center; gap:14px; background:var(--panel); border:1px solid var(--line); border-radius:8px;
+          padding:14px; margin-bottom:6px; cursor:pointer; user-select:none; -webkit-tap-highlight-color:transparent; }
+  .box { width:30px; height:30px; flex:none; border:2px solid #666; border-radius:6px; display:grid; place-items:center; font-size:22px; font-weight:700; }
+  .item.on { border-color:#264d26; } .item.on .box { background:var(--ok); border-color:var(--ok); color:#000; }
+  .item.on .label { color:var(--dim); text-decoration:line-through; }
+  .qty { margin-left:auto; font-weight:700; font-size:20px; white-space:nowrap; }
+  .note { color:var(--dim); font-size:14px; }
+  .bar { position:sticky; bottom:0; background:var(--bg); padding:12px 0; border-top:1px solid var(--line); margin-top:18px;
+         display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+  button { background:#333; color:var(--text); border:1px solid #555; border-radius:6px; padding:14px 18px; font-size:18px; cursor:pointer; }
+  #done:enabled { background:var(--ok); color:#000; border-color:var(--ok); font-weight:700; }
+  #done:disabled { opacity:.5; }
+  #msg { font-size:16px; } .err { color:var(--bad); } .good { color:var(--ok); }
+</style></head><body>
+<div class="top"><h1>Packing kit #<span id="kit">–</span></h1>
+  <span class="sub"><span id="count"></span> · <a href="/status">Bench dashboard</a></span></div>
+<div id="list"></div>
+<div class="bar">
+  <button id="done" onclick="done()">Kit packed</button>
+  <button onclick="clearAll()">Clear checks</button>
+  <span id="msg"></span>
+</div>
+<script>
+let state = null;
+function esc(s){ return String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+function id(sec, it){ return sec.name + "/" + it.label; }
+
+function render(){
+  const checked = new Set(state.checked);
+  let need = 0, have = 0;
+  document.getElementById("kit").textContent = state.kit;
+  document.getElementById("list").innerHTML = state.list.sections.map(sec => {
+    const rows = sec.items.map(it => {
+      const k = id(sec, it), on = checked.has(k);
+      if (!sec.optional) { need++; if (on) have++; }
+      return `<div class="item ${on ? "on" : ""}" data-id="${esc(k)}">
+        <div class="box">${on ? "✓" : ""}</div>
+        <div><div class="label">${esc(it.label)}</div>${it.note ? `<div class="note">${esc(it.note)}</div>` : ""}</div>
+        <div class="qty">× ${esc(it.qty)}</div></div>`;
+    }).join("");
+    return `<h2>${esc(sec.name)}</h2>${rows}`;
+  }).join("");
+  document.getElementById("count").textContent = `${have} of ${need} checked`;
+  document.getElementById("done").disabled = have < need;
+}
+
+async function call(path, method){
+  try {
+    const r = await fetch(path, {method: method || "GET", cache:"no-store"});
+    if (!r.ok) throw new Error(await r.text());
+    return r;
+  } catch(e) {
+    document.getElementById("msg").innerHTML = `<span class="err">Didn't reach the Pi — ${esc(e.message)}</span>`;
+    return null;
+  }
+}
+async function load(){ const r = await call("/api/pack"); if (r) { state = await r.json(); render(); } }
+
+document.getElementById("list").addEventListener("click", async e => {
+  const row = e.target.closest(".item"); if (!row) return;
+  document.getElementById("msg").textContent = "";
+  const r = await call("/api/pack/toggle?id=" + encodeURIComponent(row.dataset.id), "POST");
+  if (r) { state = await r.json(); render(); }
+});
+async function done(){
+  const kit = state.kit;
+  if (!confirm(`Kit #${kit} packed and box closed?`)) return;
+  if (await call("/api/pack/done", "POST")) {
+    await load();
+    document.getElementById("msg").innerHTML = `<span class="good">Kit #${kit} logged. Ready for the next one.</span>`;
+    window.scrollTo(0, 0);
+  }
+}
+async function clearAll(){
+  if (!confirm("Untick everything for this kit?")) return;
+  const r = await call("/api/pack/clear", "POST");
+  if (r) { state = await r.json(); render(); }
+}
+document.addEventListener("visibilitychange", () => { if (!document.hidden) load(); });
+load();
 </script></body></html>
 """
 

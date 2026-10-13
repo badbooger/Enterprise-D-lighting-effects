@@ -23,3 +23,4 @@ The idea: run the model with **no DataPad and no home network**. Bridge hosts it
 3. Power a Bridge and an EngRoom up together: they join the bench network, find each other over ESP-NOW, save each other's MAC, then download and install their real firmware.
 4. Watch it happen on the Pi's dashboard (`http://<pi-address>:8000/status`): Joined → Paired → Flashed for each board, then PASS for the pair.
 5. Plug each DY-SV17F sound module into the Pi's USB — it's cleared, loaded with the 25 sound files and verified automatically, with progress on the same dashboard.
+6. Pack each kit against the checklist at `http://<pi-address>:8000/pack` (works well on a tablet). Tick items as they go in the box; "Kit packed" logs the kit and resets the list. The items come from `OTA_Server/packing_list.json` — edit it to match your own kit.
