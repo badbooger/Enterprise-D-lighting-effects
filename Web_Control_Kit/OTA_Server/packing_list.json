@@ -69,11 +69,6 @@
           "label": "JST male-to-female lead",
           "qty": 1,
           "note": "Neck to saucer PCB"
-        },
-        {
-          "label": "Male JST with long leads (~16 in)",
-          "qty": 1,
-          "note": "Model power supply"
         }
       ]
     },
@@ -103,13 +98,27 @@
       "name": "Spares",
       "items": [
         {
-          "label": "Spare white LEDs",
-          "qty": "2-3"
+          "label": "Red 2x3x4 square LED",
+          "qty": 1
         },
         {
-          "label": "Bare JST 1.25 connectors",
-          "qty": "TBD",
-          "note": "Replacements if any break during disassembly"
+          "label": "White 2x3x4 square LED",
+          "qty": 2
+        },
+        {
+          "label": "JST mini 2-pin, male",
+          "qty": 1,
+          "note": "Replacement if one breaks during disassembly"
+        },
+        {
+          "label": "JST mini 2-pin, female",
+          "qty": 1,
+          "note": "Replacement if one breaks during disassembly"
+        },
+        {
+          "label": "JST mini 4-pin, male",
+          "qty": 1,
+          "note": "Replacement if one breaks during disassembly"
         }
       ]
     },
@@ -127,20 +136,17 @@
       ]
     },
     {
-      "name": "External power option — only if ordered",
-      "optional": true,
+      "name": "Power",
       "items": [
         {
-          "label": "USB-C breakout board",
-          "qty": 1
-        },
-        {
-          "label": "XL6009 boost converter (set under load, pot glued)",
-          "qty": 1
+          "label": "USB-C power lead — breakout + XL6009 boost + 16 in JST, soldered as one",
+          "qty": 1,
+          "note": "Output set 8.0–8.09V"
         },
         {
           "label": "2.5A slow-blow fuse + inline holder",
-          "qty": 1
+          "qty": 1,
+          "note": "Add-on for anyone hooking up a 9V wall supply"
         }
       ]
     }
