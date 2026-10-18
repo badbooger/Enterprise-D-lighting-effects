@@ -53,7 +53,8 @@
         },
         {
           "label": "8-pin FFC 400mm",
-          "qty": 2
+          "qty": 2,
+          "note": "One marked black on both ends (power) — check the marks"
         },
         {
           "label": "Short JST male-to-male power jumper",
@@ -77,12 +78,8 @@
       "items": [
         {
           "label": "Speaker",
-          "qty": 2
-        },
-        {
-          "label": "Small zip ties",
-          "qty": "a few",
-          "note": "Mount the speakers to the lower framing"
+          "qty": 2,
+          "note": "Double-sided tape preinstalled; hot glue to mount"
         }
       ]
     },
