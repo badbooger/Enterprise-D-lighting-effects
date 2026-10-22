@@ -327,7 +327,7 @@ const char CONTROL_HTML[] PROGMEM = R"HTMLPAGE(
         <button class="warn" id="dmgBtn" data-state="off" onclick="press(this); toggleDamage()">Trigger Damage</button>
       </div>
       <div class="row">
-        <button class="off" data-state="off" onclick="toggleOnOff(this, 'alt', 'Assembly Mode',
+        <button class="off" id="asmBtn" data-state="off" onclick="toggleOnOff(this, 'alt', 'Assembly Mode',
           () => sendCmd(0, CMD.LED_ASSEMBLY_MODE, 1),
           () => sendCmd(0, CMD.LED_ASSEMBLY_MODE, 0))">Assembly Mode: Off</button>
       </div>
@@ -546,6 +546,7 @@ const char CONTROL_HTML[] PROGMEM = R"HTMLPAGE(
       const d = await res.json();
       syncToggle('demoBtn', 'Demo Mode', 'alt', d.demo);
       syncToggle('demoSndBtn', 'Demo Sound', 'blue', d.demoSound);
+      syncToggle('asmBtn', 'Assembly Mode', 'alt', d.asm);
       if (document.getElementById('dmgBtn').dataset.state !== (d.damage ? 'on' : 'off')) setDamageState(d.damage);
       if (d.online) {
         statusBannerEl.classList.add('hidden');

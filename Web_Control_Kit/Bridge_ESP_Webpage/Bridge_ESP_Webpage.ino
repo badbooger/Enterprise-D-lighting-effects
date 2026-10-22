@@ -1199,7 +1199,8 @@ void handleStatus() {
   bridgeWebServer.send(200, "application/json", String("{\"online\":") + (online ? "true" : "false") +
                                                 ",\"demo\":" + (demoModeOn ? "true" : "false") +
                                                 ",\"demoSound\":" + (demoSoundOn ? "true" : "false") +
-                                                ",\"damage\":" + (currentEffect == EFF_ELEC_SHORT ? "true" : "false") + "}");
+                                                ",\"damage\":" + (currentEffect == EFF_ELEC_SHORT ? "true" : "false") +
+                                                ",\"asm\":" + (asmMode ? "true" : "false") + "}");
 }
 
 // ── Field firmware update (/update) ───────────────────────────────────────────

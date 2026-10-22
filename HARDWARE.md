@@ -304,6 +304,8 @@ Wiring color codes:
 | 16 & 17 (Impulse) | 33C*RBlu 50E*RB — PCB 2,3 | — |
 | 18 (Nav lights) | 58H 58E 58E 58F 58G — PCB 1 | — |
 
+> Board silkscreen: every saucer LED connector is labelled with its original-kit part number. Where a part number repeats, a suffix tells them apart (e.g. `73G`, `73G*`, `73G-`; `62C+`, `62C*`, `62C-`). `*` = connector split between two LED groups — check these light at the right step in assembly mode.
+
 > Layout rule: always work **outer ring → inner ring**.
 > "See Note" entries = 4-pin/2-LED connections split across panels — confirm wire combos once final layout is set.
 
