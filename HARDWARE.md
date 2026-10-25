@@ -637,6 +637,8 @@ The Waveshare board has a built-in LiPo charger accessible via its own USB-C por
 
 Case attaches to Waveshare screen with M3×4 screws. Waveshare USB-C port is not accessible without disassembly — use the external SM5308 USB-C port for normal charging.
 
+**Flashing:** the 7" board has two USB-C ports — upload over the one labelled **UART** (CH343 bridge, auto-reset works). The other port gave no serial data to esptool.
+
 ---
 
 ## DataPad 2.8" (Waveshare ESP32-S3-Touch-LCD-2.8)

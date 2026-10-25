@@ -10,11 +10,12 @@ The idea: run the model with **no DataPad and no home network**. Bridge hosts it
 |--------|-----------|
 | [`Bridge_ESP_Webpage/`](Bridge_ESP_Webpage) | Bridge (ESP32-S3) firmware with its own WiFi AP and control page, demo mode, browser firmware update, 3-power-cycle assembly toggle |
 | [`Engine_Room_ESP_Webpage/`](Engine_Room_ESP_Webpage) | EngRoom (Xiao ESP32-C3) firmware to pair with it — joins Bridge's AP, aft photon torpedo support, fallback recovery AP |
+| [`Data_Pad_Kit/`](Data_Pad_Kit) | Optional 7" DataPad (Waveshare ESP32-S3) firmware to pair with the two `_Webpage` sketches — Pair New DataPad support, aft photon / fire all buttons, warp button |
 | [`Batch_Bootstrap/`](Batch_Bootstrap) | Bench-only firmware for setting up boards in batches: pairs a Bridge + EngRoom by itself, then pulls the real firmware over WiFi |
 | [`OTA_Server/`](OTA_Server) | Raspberry Pi server that hands out the firmware `.bin` files and shows a live dashboard of each pair's progress |
 | [`Pi_Bench_Tools/`](Pi_Bench_Tools) | Pi setup: the isolated bench WiFi network, and a USB auto-loader for the Bridge's DY-SV17F sound module |
 
-**Just want to run one model?** You only need the two `_Webpage` sketches — flash them by USB like the main sketches (see their READMEs). Everything else here is for setting up several boards at once.
+**Just want to run one model?** You only need the two `_Webpage` sketches — flash them by USB like the main sketches (see their READMEs). Add `Data_Pad_Kit` if you want a touchscreen too. Everything else here is for setting up several boards at once.
 
 ## Batch setup in short
 
