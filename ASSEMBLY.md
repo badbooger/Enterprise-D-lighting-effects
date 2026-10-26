@@ -18,7 +18,7 @@ Stardrive (EngRoom) section, showing both the nacelle and neck FFC runs coming t
 
 Neck-to-EngRoom connection — the FFC routed between the two sections, wrapped in electrical tape to help prevent shorting against the frame.
 
-The neck bottom plate is normally held on by 5 screws. The last 2 (closest to the cable run) were left out here to avoid putting pressure on the FFC at that point — they can be fitted if you're careful about clearance, but aren't required for this to go together properly.
+The neck bottom plate is normally held on by 5 screws. Only fit 3 of them. Leave out the 2 closest to the cable run: they press on the FFC and can cause a short. The plate holds fine on 3.
 
 ![Close-up of the taped FFC at the neck connection](assembly_photos/Neck%20routing%20and%20protection%201.jpg)
 
