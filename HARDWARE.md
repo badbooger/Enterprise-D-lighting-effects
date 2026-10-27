@@ -503,6 +503,8 @@ All three Bridge PCBs revised. Current boards unchanged — firmware update defe
 > **Observed 2026-10-13 (bench, eyeball only — not a formal test):** stock boards (1.2kΩ LED resistors, regulator fitted) on a bench supply down to 4.5V — sound still plays and the LEDs are bright enough given how many the model has. **So the LED resistor swap above is not needed for a 5V build** — stock 1.2kΩ is fine (≈1.3mA/LED at 5V vs the original kit's ≈1.6mA). At 5V in, the LM1117-3.3 (PCB2) keeps regulation; the LM1117-5.0 (PCB3) sits in dropout and feeds the DY ≈3.9V — works, and the 0Ω bypass restores full 5V if wanted. **Original 3×AAA power is not viable:** alkalines sag to ~3.6–4.2V under load, below the LM1117-3.3's ~4.4V minimum, so the S3 browns out on radio bursts long before the cells are flat.
 >
 > **⚠️ A board with the 0Ω bypass fitted is 5V-only.** With the regulator removed, the DY-SV17F sees the raw input — plugging in the 7.4–8.4V 2S pack will kill it. Label the board clearly.
+>
+> **⚠️ Tested 2026-10-27 — plain 5V does NOT run the fully assembled model.** The 2026-10-13 result above was bare boards at low load. With everything installed and powered from a single 5V input at the stardrive, the saucer reboots in a loop every time all the LEDs come on. Likely cause (not measured): at the full model's ~0.8A, the 5V sags through the stardrive → FFC → neck → jumper chain until the saucer's LM1117-3.3 drops below its minimum input. Run the model at 7.4–8.4V (2S pack, or a USB-C boost set to ~8V) — not 5V. Measured at 8.3V: 0.77–0.78A with all lights on, spikes ~0.79A with sound.
 
 ---
 
